@@ -15,7 +15,11 @@ Guides you through the complete QRSPI (Query, Research, Spec, Plan, Implement, R
 
 ## Workflow Phases
 
+### Optional Pre-Discovery: Explore
+Use `qrspi-x:explore` when you don't yet know what to build — e.g. surveying what a reference framework provides that isn't yet adapted here. Produces `./qrspi/<exploration-name>/explore.md`: observations, gaps, and candidate directions. Not tied to a specific feature, not part of the phase progression below, and has no `state.json` of its own — when a direction is chosen, start the normal flow with Init for that feature. Skip this entirely when the feature is already clear.
+
 ### Discovery Phase (Iterative)
+0. **Init** - Capture feature intent (`qrspi-x:init`)
 1. **Query** - Surface critical questions (`qrspi-x:query`)
 2. **Research** - Gather facts from codebase (`qrspi-x:research`)
    - **Cycle back to Query** if research surfaces new questions
@@ -84,6 +88,12 @@ Fields:
 5. Present options for next step
 6. Update state based on user choice
 
+### After Init Step
+**Prompt:** "Feature intent captured in `./qrspi/<feature>/request.md`. Next steps:
+1. **Query** - Generate questions from this intent
+2. **Refine Request** - Edit request.md before continuing
+3. **Cancel** - Stop workflow"
+
 ### After Query Step
 **Prompt:** "Queries generated in `./qrspi/<feature>/queries.md`. Next steps:
 1. **Research** - Gather facts to answer these questions
@@ -147,9 +157,9 @@ Fields:
 
 When starting a new workflow:
 1. Check whether `./qrspi/<feature>/` exists
-2. If it does not exist: create the directory and write `state.json` with initial values (`currentPhase: "discovery"`, `currentStep: "query"`, `completedSteps: []`, `discoveryIterations: 0`, `activeStepIndex: null`, `blockers: []`, `decisions: []`, `history: []`)
+2. If it does not exist: invoke `qrspi-x:init` to capture the feature request into `request.md` and write the initial `state.json` (`currentPhase: "discovery"`, `currentStep: "init"`, `completedSteps: []`, `discoveryIterations: 0`, `activeStepIndex: null`, `blockers: []`, `decisions: []`, `history: []`)
 3. If it does exist and `state.json` is present: this is a resume — go to the resume path below
-4. Start with Query step
+4. After Init completes, proceed to Query step
 
 When resuming:
 1. Read `state.json` — if missing, warn the user and offer to reinitialize or abort
@@ -164,7 +174,7 @@ After every step transition, update `state.json` before presenting options to th
 
 After successful completion:
 - Offer to archive QRSPI artifacts to `./qrspi/<feature>/archive/`
-- Keep spec.md and plan.md for reference
+- Keep request.md, spec.md, and plan.md for reference
 - Delete queries.md and research.md (captured in code/commits)
 - Preserve review artifacts for audit trail
 

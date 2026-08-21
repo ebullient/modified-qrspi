@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: QRSPI adversarial code review agent. Use when executing the Review step of a QRSPI workflow. Reads spec.md and plan.md, diffs the scoped changes, and produces a PASS/FAIL verdict with spec conformance and plan fidelity checks. Spawned by qrspi-x:review skill or qrspi-x:workflow orchestrator.
-tools: Read, Bash, Glob, Grep
+tools: Read, Write, Bash, Glob, Grep
 model: inherit
 color: red
 ---

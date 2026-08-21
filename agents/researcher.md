@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: QRSPI research agent. Use when executing the Research step of a QRSPI workflow. Reads queries.md, systematically explores the codebase to answer each question, and writes research.md. Spawned by qrspi-x:research skill or qrspi-x:workflow orchestrator.
-tools: Read, Bash, Glob, Grep
+tools: Read, Write, Bash, Glob, Grep
 model: inherit
 color: blue
 ---

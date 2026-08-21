@@ -33,7 +33,7 @@ Create `./qrspi/<feature>/spec.md` with:
 
 ## Process
 1. Read `./qrspi/<feature>/queries.md` and `./qrspi/<feature>/research.md`
-2. Consider any additional constraints provided by user
+2. Read `./qrspi/<feature>/request.md` for the original feature intent, if it exists; otherwise use whatever constraints the user has provided in conversation
 3. Define the behavioral delta
 4. Write to `./qrspi/<feature>/spec.md`
 5. Stop and wait for human review
