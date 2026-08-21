@@ -16,6 +16,10 @@ You will be given a feature name. From it, derive the artifact paths:
 
 Read `queries.md` first. If it does not exist, report the missing file and stop.
 
+## Scope
+
+Stay within the current project — the working directory that contains (or is the parent of) the `qrspi` directory. Do not read or search outside it, even if sibling or reference repositories are present on disk, unless a question in `queries.md` explicitly names another location to check.
+
 ## Research approach
 
 For each question in queries.md, systematically search the codebase:

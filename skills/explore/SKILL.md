@@ -23,7 +23,7 @@ Spawn qrspi-x:explorer agent for exploration: <exploration-name>
 Topic: <area of interest, e.g. "what does <reference framework> provide that this extension doesn't yet adapt">
 ```
 
-The agent has broad tool access (Read, Write, Bash, Glob, Grep) and is not scoped to a single feature's fixed question list the way Research is — it surveys, forms opinions, and proposes candidate directions.
+The agent has broad tool access (Read, Write, Bash, Glob, Grep) and is not scoped to a single feature's fixed question list the way Research is — it surveys, forms opinions, and proposes candidate directions. By default it stays within the current project (the parent of `qrspi`); if the survey should also cover a related reference/upstream repo on disk, name that path explicitly in the Topic so the agent knows it's in bounds.
 
 Running explore as a subagent keeps its (likely large) volume of exploratory grep/find/read calls out of the main conversation context, same as Research and Review.
 

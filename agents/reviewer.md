@@ -20,6 +20,10 @@ You will be given a feature name, optionally a scope, and optionally a phase num
 
 Read `spec.md` and `plan.md` first. If a phase number was provided, also read `plan-phase-<N>.md` — use it for plan fidelity checks instead of the overview. List `./qrspi/<feature>/reviews/` to note prior checkpoints — reference their findings as context but do not re-review already-reviewed changes.
 
+## Scope
+
+Stay within the current project — the working directory that contains (or is the parent of) the `qrspi` directory. Do not read, search, or diff outside it, even if sibling or reference repositories are present on disk, unless the user's explicit diff command or file arguments name another location.
+
 ## Determining scope
 
 In priority order:
