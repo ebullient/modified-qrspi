@@ -2,7 +2,7 @@
 name: init
 description: 'QRSPI Step 0: Capture feature intent and initialize the workspace'
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Init

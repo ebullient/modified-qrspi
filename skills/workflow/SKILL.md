@@ -4,7 +4,7 @@ description: >-
   Orchestrate the full QRSPI workflow (Query → Research → Spec → Plan →
   Implement → Review) with human gates between steps
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Workflow Orchestrator

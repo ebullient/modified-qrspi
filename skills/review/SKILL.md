@@ -4,7 +4,7 @@ description: >-
   QRSPI Step 6: Adversarial code review — incremental checkpoints or full
   branch, produces a PASS/FAIL verdict
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Review

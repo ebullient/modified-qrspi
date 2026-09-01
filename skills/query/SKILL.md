@@ -4,7 +4,7 @@ description: >-
   QRSPI Step 1: Surface critical questions about a feature before implementation
   begins
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Query

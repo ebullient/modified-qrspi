@@ -2,7 +2,7 @@
 name: research
 description: 'QRSPI Step 2: Gather facts from codebase to answer query questions'
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Research

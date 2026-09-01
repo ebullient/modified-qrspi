@@ -2,7 +2,7 @@
 name: spec
 description: 'QRSPI Step 3: Define behavioral delta - what changes and what stays the same'
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Spec
@@ -32,11 +32,20 @@ Create `./qrspi/<feature>/spec.md` with:
 - Testable acceptance criteria
 
 ## Process
-1. Read `./qrspi/<feature>/queries.md` and `./qrspi/<feature>/research.md`
-2. Read `./qrspi/<feature>/request.md` for the original feature intent, if it exists; otherwise use whatever constraints the user has provided in conversation
-3. Define the behavioral delta
-4. Write to `./qrspi/<feature>/spec.md`
-5. Stop and wait for human review
+
+### Step 0 — Verify the request is settled
+Before writing any spec, confirm that `request.md` captures a clear, agreed-upon intent:
+
+1. Read `./qrspi/<feature>/request.md`.
+2. Read `./qrspi/<feature>/queries.md` and `./qrspi/<feature>/research.md`.
+3. Check whether any "Questions for the User" from the query cycles were answered and folded back into `request.md` (look for a `## Clarifications` section or similar additions). If clarifications are missing — i.e., open intent questions were raised but `request.md` shows no trace of answers — **stop**, surface the unresolved questions to the human, and wait for them to update `request.md` before continuing.
+4. Confirm the request reads as a concrete feature intent, not as a conversational fragment or a list of still-open options. If it is too vague or contradictory to support a behavioral delta, **stop**, describe what is unclear, and wait for the human to refine `request.md`.
+5. Only proceed once `request.md` is settled. If it is already clear and complete, say so in one sentence and continue immediately — this is a guard, not a gate that requires explicit approval when nothing is wrong.
+
+### Step 1 — Define the behavioral delta
+1. Using the settled `request.md`, `queries.md`, and `research.md`, define the behavioral delta
+2. Write to `./qrspi/<feature>/spec.md`
+3. Stop and wait for human review
 
 Do not create implementation plans. Your job ends when spec.md is written.
 

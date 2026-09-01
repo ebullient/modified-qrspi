@@ -2,7 +2,7 @@
 name: plan
 description: 'QRSPI Step 4: Break spec into atomic, ordered implementation steps'
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Plan

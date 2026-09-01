@@ -4,7 +4,7 @@ description: >-
   QRSPI optional pre-step: survey an area of the codebase to find gaps and
   candidate directions before a feature request can be written
 metadata:
-  disable-model-invocation: true
+  disable-model-invocation: false
 ---
 
 # QRSPI Explore
