@@ -38,7 +38,7 @@ When research surfaces "New Questions" (a refinement cycle, not the initial pass
 ## After the Agent Returns
 1. Read the agent's report: question count per category, plus any Questions for the User
 2. If there are Questions for the User: ask them directly, then append the Q&A to `./qrspi/<feature>/request.md` (a "## Clarifications" section works well — keep the original request intact and add to it). This is a revision to intent, not to queries.md.
-3. If request.md changed in step 2: re-spawn the `qrspi-x:query` agent against the updated request.md — this regenerates `queries.md` so it reflects the clarified intent, not just the original ambiguity. Repeat from step 1.
+3. If request.md changed in step 2: move the existing `queries.md` aside to `queries.md.bak` (if `queries.md.bak` already exists, use `queries.md.bak.<n>` with the next unused number instead, so no prior backup is overwritten), then re-spawn the `qrspi-x:query` agent against the updated request.md — this regenerates `queries.md` so it reflects the clarified intent, not just the original ambiguity. The agent's `Write`-only toolset can create a fresh file but can't overwrite an existing one, so the file must be out of the way first. Repeat from step 1.
 4. Once a pass comes back with no Questions for the User (or the human chooses to proceed despite open ones), stop and wait for human review of `./qrspi/<feature>/queries.md`
 
 Do not proceed to research or any other step automatically.
