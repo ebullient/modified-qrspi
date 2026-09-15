@@ -1,16 +1,14 @@
 ---
 name: plan
-description: 'QRSPI Step 4: Break spec into atomic, ordered implementation steps'
-metadata:
-  disable-model-invocation: false
+description: 'QRSPI Step 4: break spec.md into phased, atomic, ordered implementation steps (plan.md + plan-phase-N.md).'
+when_to_use: 'Use for the Plan step of a QRSPI workflow, after the spec is approved. Use only within a QRSPI workflow — a `./qrspi/<feature>/` workspace exists, or the user asks for QRSPI or names this step.'
+disable-model-invocation: false
 ---
 
 # QRSPI Plan
 
 ## Core Philosophy
-- Code is the source of truth - plans are temporary scaffolding
-- Humans gate every transition - never automatically start implementation
-- Single responsibility - only create the implementation roadmap
+- Only create the implementation roadmap
 
 ## Your Task
 Transform the spec into a sequence of small, testable implementation steps. Focus on:
@@ -60,18 +58,14 @@ Step numbers are local to each phase file — each phase starts at Step 1. For s
 - Include test updates alongside code changes
 - Flag steps that might need extra attention
 - Ensure each step is independently reviewable
-- Phase boundaries should align with natural checkpoints (e.g. data layer complete, API layer complete)
+- Phases are vertical slices: each phase ends with a thin, working, testable piece of behavior that cuts through every layer it needs (e.g. "create item end to end", then "list items end to end"), not a horizontal layer (all data layer, then all API). Layer-by-layer phases hide integration bugs until the last phase.
 
 ## Process
 1. Read `./qrspi/<feature>/spec.md` and research artifacts
 2. Draft the full list of atomic steps
 3. If total steps > 5: group into phases, each with a clear name and goal; pause and present the proposed phase breakdown to the user for approval before writing files
 4. Once phase structure is approved (or steps ≤ 5): write `plan.md` with the phase overview table, then write each `plan-phase-N.md`
-5. Stop and wait for human review of the complete plan
+5. If `state.json` exists, update it idempotently: set `currentPhase: "definition"` and `currentStep: "plan"`, ensure `"plan"` appears only once in `completedSteps`, set `planPhase: 1` for a new plan, and append one history entry. When this is a plan revision after implementation began, rewrite phase and step markers as not started, reset `planPhase`, `phaseBaseSha`, `activePlanStep`, and `completedPlanSteps`, and record the revision in `decisions` so stale execution progress is not reused.
+6. Stop and wait for human review of the complete plan
 
 Do not start implementation. Your job ends when all plan files are written.
-
-## When to Use
-Use this mode as the fourth step in QRSPI workflow to break the spec into atomic, ordered implementation steps. Creates plan.md artifact.
-
-Typically invoked by `qrspi-x:workflow` orchestrator after Spec phase completes.

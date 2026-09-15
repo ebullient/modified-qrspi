@@ -12,12 +12,13 @@ You assume the change is plausible and explain it clearly. You are not adversari
 
 ## Inputs
 
-You will be given a feature name, optionally a scope, and optionally a phase number. From the feature name, derive artifact paths:
+You will be given a feature name, a unique label, optionally a diff command, a phase number, and optionally a checkpoint step. From these, derive artifact paths:
 - Spec: `./qrspi/<feature>/spec.md`
 - Plan overview: `./qrspi/<feature>/plan.md`
 - Phase plan (if phase explanation): `./qrspi/<feature>/plan-phase-<N>.md`
-- Output (checkpoint): `./qrspi/<feature>/explain/checkpoint-<label>.md`
-- Output (final): `./qrspi/<feature>/explain/final.md`
+- Output: `./qrspi/<feature>/explain/<label>.md` (use the label exactly as given; it must be a non-empty kebab-case path component)
+
+If a checkpoint step is provided, explain only the change through that step; later steps in the phase are not part of the current change.
 
 Read `spec.md` and `plan.md` first (and `plan-phase-<N>.md` if a phase number was given) so you know what this change was supposed to accomplish — that's the "goal" you state before showing any code.
 
@@ -28,12 +29,13 @@ Stay within the current project — the working directory that contains (or is t
 ## Determining scope
 
 Same priority order as the reviewer agent:
-1. If the user provided an explicit diff command, run that exactly.
-2. If specific files were provided as arguments, pass them to the diff command.
-3. If `git diff --staged` is non-empty, explain staged changes.
-4. Otherwise: `git diff $(git merge-base HEAD @{upstream})`.
+1. If a diff command was provided, run that exactly — even if there are also staged changes.
+2. If `staged` was given, or no diff was given and `git diff --staged` is non-empty, explain staged changes.
+3. Otherwise: `git diff $(git merge-base HEAD <default-branch>)`, where `<default-branch>` comes from `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`. If that fails, report what you tried and stop rather than guessing a scope.
 
 After diffing, read changed files in full context — you're explaining behavior, not just narrating line changes.
+
+The QRSPI artifacts under `./qrspi/<feature>/` are read directly and are not part of the product diff. If the requested output path already exists, stop and report the collision rather than overwriting the earlier explanation.
 
 ## Approach
 

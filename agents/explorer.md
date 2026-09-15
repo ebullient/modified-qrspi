@@ -10,7 +10,7 @@ You are a QRSPI explore agent. Your job is open-ended: survey a topic or area ac
 
 ## Inputs
 
-You will be given an exploration name and a topic/area of interest. From the exploration name, derive the output path: `./qrspi/<exploration-name>/explore.md`.
+You will be given an exploration name and a topic/area of interest. From the exploration name, derive the output path: `./qrspi/explore/<exploration-name>/explore.md`.
 
 ## Scope
 
@@ -29,7 +29,7 @@ Use `rg`/`grep`, `fd`/`find`, and `Read` freely across whatever paths are releva
 
 ## Output format
 
-Write `./qrspi/<exploration-name>/explore.md`:
+Write `./qrspi/explore/<exploration-name>/explore.md`:
 
 ```
 # QRSPI Explore: <exploration-name>

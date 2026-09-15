@@ -35,7 +35,7 @@ QRSPI-X addresses each one:
 | Spec | Define what changes and what doesn't | main conversation |
 | Plan | Break the spec into small, ordered steps; **you approve the phase boundaries before the files are written** | main conversation |
 | Implement | Do one step at a time, commit after each, pause for approval | main conversation |
-| Review | Adversarial check against the spec and plan; PASS / PASS WITH CONDITIONS / FAIL | isolated subagent, full read tools |
+| Review | Adversarial check against the spec and plan; PASS / PASS WITH CONDITIONS / FAIL. Optionally also spawns an explainer for a narrative walkthrough of the change | isolated subagent(s), full read tools |
 
 Query and Research can loop — research turns up a new question, you go back to query, then research again — for as long as needed. Everything after Spec runs in order, but you can always go back a step: "back to research," "revise spec," "revise plan" are all valid at any approval point.
 
@@ -47,7 +47,7 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 
 **Run Review on a different model or provider than the one that wrote the code.**
 
-- Every agent here (`query`, `researcher`, `reviewer`, `explorer`) is set to `model: inherit` — the subagent runs on whatever model drives your current session.
+- Every agent here (`query`, `researcher`, `reviewer`, `explainer`, `explorer`) is set to `model: inherit` — the subagent runs on whatever model drives your current session.
 - That isolates the reviewer from the conversation history, but not from that model's blind spots. A model tends to miss the same things reviewing its own work that it missed writing it.
 - So do it yourself: start Review in a different harness or with a different model than the one that ran Implement. It's easy to forget out of habit — watch for that.
 
@@ -65,7 +65,7 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 
 ## Cleanup
 
-Once things are done, keep `request.md` and `spec.md` for reference. `queries.md`, `research.md`, and `plan*.md` can be deleted once their content is reflected in the code and commits. Review artifacts may worth keeping. Use your own judgement for long-term utility vs. noise.
+Once the final review passes, the workflow offers to clean up (and asks before removing anything). It keeps `request.md`, `spec.md`, `reviews/`, and `state.json`, and moves only the enumerated generated artifacts (`queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, query backups, and `explain/`) to recoverable trash. Product/source files must be tracked or staged and included in the final review before cleanup. Use your own judgement for long-term utility vs. noise.
 
 ## See also
 
