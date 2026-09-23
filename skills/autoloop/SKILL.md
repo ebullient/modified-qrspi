@@ -99,7 +99,7 @@ If it reports `STOPPED`, record `loop.stoppedReason`, preserve its blocker, and 
 
 ### 2. Review
 
-Set `currentStep` and `loop.cycle` to `review`. Spawn the reviewer as `qrspi-x:review`, using the phase diff:
+Set `currentStep` and `loop.cycle` to `review`. Spawn the reviewer as `qrspi-x:reviewer`, using the phase diff:
 
 ```
 Spawn qrspi-x:reviewer agent for feature: <feature-name>
