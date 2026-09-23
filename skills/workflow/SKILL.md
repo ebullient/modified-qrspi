@@ -40,6 +40,9 @@ Use `qrspi-x:explore` when you don't yet know what to build — e.g. surveying w
    - Can run checkpoint reviews during implementation
    - Final review before completion
 
+### Alternate Execution: Autoloop
+When the spec and plan are already trusted, `qrspi-x:autoloop` replaces steps 5 and 6 for one phase or all phases: it loops implement → review unattended, with one repair attempt per failed review, and stops for the human on anything it can't resolve. It gates only entry (scope and readiness) and exit (it stops before the final review), so it does not satisfy this orchestrator's "humans gate every transition" principle — it declares a narrower contract instead. Implementation runs in a subagent per phase rather than in the main conversation. Offer it as an option at the After Plan Step prompt; don't invoke it in place of `qrspi-x:implement` without the human choosing it.
+
 ## Usage
 
 ```bash
@@ -140,8 +143,9 @@ When a backward jump changes `request.md`, `queries.md`, or `research.md`, exist
 **Prompt:** "Plan complete. Show the phase overview from `plan.md`. Next steps:
 1. **Implement All** - Execute all phases in order
 2. **Implement Phase N** - Execute a specific phase
-3. **Refine Plan** - Modify plan files
-4. **Cancel** - Stop workflow"
+3. **Autoloop** - Run implement → review unattended for one phase or all phases, gated only at entry and before the final review (`qrspi-x:autoloop`)
+4. **Refine Plan** - Modify plan files
+5. **Cancel** - Stop workflow"
 
 ### During Implementation (within a phase)
 **Prompt after each step:** "Step N of phase M complete. Next steps:

@@ -63,6 +63,31 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 - Instead: skim `plan-phase-N.md`, review the actual diff at each phase boundary (the adversarial reviewer catches what you miss), and do one full pass at the end for how the phases fit together.
 - Spend your attention where it pays off, not where the process says you should.
 
+## Autoloop: running execution unattended
+
+The pipeline above gates every transition. `qrspi-x:autoloop` is an alternate path for execution only — use it when you already trust the spec and plan and don't want to approve every step.
+
+It runs one phase or all remaining phases:
+
+```
+implement phase → review → PASS: next phase
+                         → FAIL: one repair pass → re-review → PASS: next phase
+                                                             → FAIL: stop for you
+```
+
+Four things make it different from `qrspi-x:implement`:
+
+- **Implementation runs in a subagent, one per phase.** The orchestrator only spawns agents and tracks state — it never reads a diff or a source file. It has to survive to the end of the run to make phase-boundary decisions, so its context stays empty on purpose.
+- **One repair attempt per phase, then it stops.** Not a convergence heuristic, just a cap. A phase that fails review twice is something you should look at, and grinding on it unattended costs more than stopping.
+- **It commits once per step** — the loop's undo stack as much as your history. When it hands back a half-repaired phase, per-step commits are how you find where it went wrong. Squash after you've looked, not before.
+- **It stops before the final review.** Autoloop never runs it and never opens a PR.
+
+**What you give up.** Interim reviews run on the same model that just wrote the code — every agent is `model: inherit` so the skill stays portable, and there's no human mid-loop to switch harnesses. So treat interim reviews as a fast filter, not an independent check. The independent check is the final review, which is yours to run, on a different model, exactly as described above. A run of green interim reviews is not a substitute.
+
+It resumes. Every cycle writes its position to `state.json` before acting, so a session that dies mid-phase picks up from the first uncommitted step rather than redoing the phase.
+
+Non-blocking findings (`PASS WITH CONDITIONS`) don't stop the loop — they accumulate and get reported together at the end for you to triage.
+
 ## Cleanup
 
 Once the final review passes, the workflow offers to clean up (and asks before removing anything). It keeps `request.md`, `spec.md`, `reviews/`, and `state.json`, and moves only the enumerated generated artifacts (`queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, query backups, and `explain/`) to recoverable trash. Product/source files must be tracked or staged and included in the final review before cleanup. Use your own judgement for long-term utility vs. noise.
