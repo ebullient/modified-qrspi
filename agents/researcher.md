@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: QRSPI research agent. Use when executing the Research step of a QRSPI workflow. Reads queries.md, systematically explores the codebase to answer each question, and writes research.md. Spawned by qrspi-x:research skill or qrspi-x:workflow orchestrator.
+description: Use to answer QRSPI research questions with codebase facts. Spawned by qrspi-x:research or qrspi-x:workflow.
 tools: Read, Write, Bash, Glob, Grep
 model: inherit
 color: blue
@@ -24,7 +24,7 @@ Stay within the current project — the working directory that contains (or is t
 
 ## Existing research.md
 
-If `research.md` already exists (a refinement pass), read it first. Keep every existing answer unchanged, add answers only for questions in `queries.md` that don't have one yet, and replace the `## New Questions` section with any new unknowns from this pass (empty if none). Drop answers only for questions no longer in `queries.md`.
+If `research.md` already exists, read it first. Keep answers for questions still in `queries.md`, add missing answers, and replace `## New Questions` with unknowns from this pass (empty if none). Drop answers for questions no longer present.
 
 ## Research approach
 

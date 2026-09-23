@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: QRSPI autoloop implementation agent. Executes one plan phase, or one repair pass against review findings, without pausing for human approval. Spawned only by the qrspi-x:autoloop orchestrator — interactive implementation uses the qrspi-x:implement skill in the main conversation instead.
+description: Use for unattended QRSPI phase execution or one repair pass. Spawned only by qrspi-x:autoloop.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: inherit
 color: orange

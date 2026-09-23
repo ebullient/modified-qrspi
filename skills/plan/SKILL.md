@@ -1,7 +1,7 @@
 ---
 name: plan
-description: 'QRSPI Step 4: break spec.md into phased, atomic, ordered implementation steps (plan.md + plan-phase-N.md).'
-when_to_use: 'Use for the Plan step of a QRSPI workflow, after the spec is approved. Use only within a QRSPI workflow — a `./qrspi/<feature>/` workspace exists, or the user asks for QRSPI or names this step.'
+description: 'Use when turning an approved QRSPI spec into phased implementation steps.'
+when_to_use: 'Use for the Plan step after Spec is approved. Use `qrspi-x:workflow` for orchestration or `qrspi-x:implement` to execute an existing plan.'
 disable-model-invocation: false
 ---
 
@@ -10,15 +10,13 @@ disable-model-invocation: false
 ## Core Philosophy
 - Only create the implementation roadmap
 
-## Your Task
-Transform the spec into a dependency-aware roadmap of small, testable implementation steps. Focus on:
+## Task
+Turn the spec into a dependency-aware roadmap of small, testable steps. Ensure:
 
-1. **Atomic Changes**: Each step should be independently testable
-2. **Dependency Check**: Steps within a phase may build on each other, but phases are not assumed to depend on one another. Record a phase dependency only when it requires a concrete output from another phase, such as an interface, type, schema, or artifact.
-3. **Risk Management**: Identify steps that might be complex or risky
-4. **Testing Strategy**: Include test creation/updates in appropriate steps
-5. **Rollback Points**: Ensure each step leaves code in a working state
-6. **File-Level Granularity**: Specify which files will be modified in each step
+1. Each step is independently testable and names its files.
+2. Each dependency names a concrete output from another phase; phase order alone is not a dependency.
+3. Include test creation/updates in or as appropriate steps.
+4. Risky work and rollback points are explicit.
 
 ## Plan Format
 

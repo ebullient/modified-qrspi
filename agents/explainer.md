@@ -1,6 +1,6 @@
 ---
 name: explainer
-description: QRSPI explain agent. Optional, spawned alongside (never instead of) the reviewer during the Review step when the user opts in. Produces a narrative walkthrough of what changed and why, independent of and isolated from the reviewer agent — not a verification step.
+description: Use for an optional, independent narrative of a QRSPI change during Review. Spawned by qrspi-x:review.
 tools: Read, Write, Bash, Glob, Grep
 model: inherit
 color: purple

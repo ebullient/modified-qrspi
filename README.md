@@ -65,7 +65,7 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 
 ## Autoloop: running execution unattended
 
-The pipeline above gates every transition. `qrspi-x:autoloop` is an alternate path for execution only — use it when you already trust the spec and plan and don't want to approve every step.
+The pipeline above gates at every step. `qrspi-x:autoloop` is an alternate path for execution only — it gates at the phase, or at the whole plan, instead. You still approve the scope going in and still review the result before anything is integrated; what changes is how much work piles up behind one gate. Use it when the plan is straightforward enough that reviewing it in one pass is faster than reviewing it in six.
 
 It runs one phase or all remaining phases:
 

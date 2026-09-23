@@ -1,6 +1,6 @@
 ---
 name: explorer
-description: QRSPI explore agent. Use for open-ended codebase surveys before a feature request exists — e.g. finding what a reference framework provides that hasn't been adapted yet. Produces explore.md: observations, gaps, and candidate directions. Spawned by qrspi-x:explore skill.
+description: Use for open-ended QRSPI surveys before a feature request exists. Spawned by qrspi-x:explore.
 tools: Read, Write, Bash, Glob, Grep
 model: inherit
 color: yellow

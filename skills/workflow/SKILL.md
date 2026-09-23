@@ -1,7 +1,7 @@
 ---
 name: workflow
-description: 'Orchestrate the full QRSPI workflow (Init → Query ⇄ Research → Spec → Plan → Implement → Review) with human gates and resumable state.'
-when_to_use: 'Use when the user wants to start or resume a feature with QRSPI (`/qrspi-x:workflow <feature-name>`). For one-off execution of a single step (e.g. just a review), use that step''s skill directly.'
+description: 'Use when starting or resuming a feature through the full QRSPI workflow.'
+when_to_use: 'Use for `/qrspi-x:workflow <feature-name>`. For one step, such as a standalone review, use that step''s skill directly.'
 disable-model-invocation: false
 ---
 
@@ -11,11 +11,11 @@ disable-model-invocation: false
 
 Guides you through the complete QRSPI (Init, Query, Research, Spec, Plan, Implement, Review) workflow for feature development. Handles human gates between steps and supports iterative Query ↔ Research cycles.
 
-## Core Principles
+## Core Philosophy
 
-These apply to every QRSPI step skill:
+These apply to all QRSPI skills:
 - **Code is the source of truth** — QRSPI artifacts are disposable scaffolding
-- **Humans gate every transition** — each step stops when its artifact is written; never start the next step automatically
+- **Humans gate every transition** — work stops at the gate and waits; never carry on past it automatically. The granularity varies: `qrspi-x:workflow` gates every step, `qrspi-x:autoloop` gates at the phase or the whole plan. The gate itself does not move — nothing is integrated without a human reviewing it.
 - **Single responsibility** — each step does one job and nothing from the steps around it
 
 ## Workflow Phases
@@ -41,7 +41,8 @@ Use `qrspi-x:explore` when you don't yet know what to build — e.g. surveying w
    - Final review before completion
 
 ### Alternate Execution: Autoloop
-When the spec and plan are already trusted, `qrspi-x:autoloop` replaces steps 5 and 6 for one phase or all phases: it loops implement → review unattended, with one repair attempt per failed review, and stops for the human on anything it can't resolve. It gates only entry (scope and readiness) and exit (it stops before the final review), so it does not satisfy this orchestrator's "humans gate every transition" principle — it declares a narrower contract instead. Implementation runs in a subagent per phase rather than in the main conversation. Offer it as an option at the After Plan Step prompt; don't invoke it in place of `qrspi-x:implement` without the human choosing it.
+
+When the spec and plan are trusted, `qrspi-x:autoloop` can replace Steps 5–6 for one phase or all remaining phases. It runs implement → review unattended, allows one repair after a failed review, and stops on anything unresolved. It gates at a coarser granularity than this workflow — the phase, or the whole plan, rather than every step. The human still approves the scope going in and reviews the result before anything is integrated. Choose it by how much work you want to accumulate behind one gate: a short, straightforward plan is faster to review in one pass than in six. Offer it after Plan; use it only when the human chooses it.
 
 ## Usage
 
@@ -96,6 +97,22 @@ Fields:
 - `decisions` — key decisions made during the workflow that aren't obvious from artifacts (e.g. "chose approach B because X", "skipped step 4 because Y"); append, never overwrite
 - `discoveryIterations` — how many Research steps have completed (each Research run ends one Query→Research cycle)
 - `history` — append-only log; add one entry each time a step finishes (and for `--step` jumps), with `step`, `timestamp`, and optional context such as `mode`, `reason`, `iteration`, `label`, `verdict`, and `artifact`
+- `loop` — autoloop-only control block; see `qrspi-x:autoloop`. It is absent from ordinary workflow runs.
+
+The autoloop `loop` block has this shape:
+
+```json
+{
+  "scope": "phase-3",
+  "cycle": "review",
+  "phase": 3,
+  "repairUsed": false,
+  "conditions": [],
+  "stoppedReason": null
+}
+```
+
+`scope` is `phase-<N>` or `all`; `cycle` is `implement`, `review`, `repair`, `re-review`, or `done`; `phase` is the active phase; `repairUsed` caps repair at one attempt per phase; `conditions` stores non-blocking findings; and `stoppedReason` records why the loop stopped.
 
 Every skill updates `state.json` when it exists, but only `qrspi-x:init` (or `qrspi-x:query`, when Init was skipped) creates it.
 
@@ -106,12 +123,10 @@ When a backward jump changes `request.md`, `queries.md`, or `research.md`, exist
 ## Orchestrator Behavior
 
 ### At Each Step
-1. Load current state from `state.json` (or initialize if new)
-2. Announce current step and what it will do
-3. Invoke the appropriate skill (e.g., `qrspi-x:query`)
-4. Wait for human review of the artifact
-5. Present options for next step
-6. Update navigation state based on user choice; do not duplicate the completed-step or history entry written by the skill
+1. Load `state.json` (or initialize if new).
+2. Announce and invoke the current step skill.
+3. Wait for human review of its artifact.
+4. Present the next-step options and update navigation state from the human's choice. Do not duplicate the completion or history entry written by the skill.
 
 ### After Init Step
 **Prompt:** "Feature intent captured in `./qrspi/<feature>/request.md`. Next steps:

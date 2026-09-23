@@ -1,7 +1,7 @@
 ---
 name: spec
-description: 'QRSPI Step 3: define the behavioral delta (what changes and what stays the same) in spec.md.'
-when_to_use: 'Use for the Spec step of a QRSPI workflow, after Query ↔ Research cycles complete. Use only within a QRSPI workflow — a `./qrspi/<feature>/` workspace exists, or the user asks for QRSPI or names this step.'
+description: 'Use when defining the behavioral delta for a QRSPI feature.'
+when_to_use: 'Use for the Spec step after Query ↔ Research is complete. Use `qrspi-x:query` or `qrspi-x:research` if intent or codebase facts are still unclear.'
 disable-model-invocation: false
 ---
 
@@ -10,8 +10,8 @@ disable-model-invocation: false
 ## Core Philosophy
 - Specs describe changes, not the entire system — only define the behavioral contract
 
-## Your Task
-Based on queries and research, define exactly what will change. Focus on:
+## Task
+Using the settled request, queries, and research, define exactly what changes. Cover:
 
 1. **Behavioral Changes**: What new behaviors are being added?
 2. **API Contracts**: What interfaces will change or be added?

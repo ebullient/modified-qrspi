@@ -1,7 +1,7 @@
 ---
 name: review
-description: 'QRSPI Step 6: adversarial review of a phase checkpoint or the full branch against spec.md and the plan, producing a PASS / PASS WITH CONDITIONS / FAIL verdict.'
-when_to_use: 'Use for phase checkpoint or final reviews in a QRSPI workflow, or a one-off review of changes that have a QRSPI spec and plan. Use only within a QRSPI workflow — a `./qrspi/<feature>/` workspace exists, or the user asks for QRSPI or names this step.'
+description: 'Use when adversarially reviewing QRSPI changes against a spec and plan.'
+when_to_use: 'Use for a phase checkpoint, final review, or one-off review with a QRSPI spec and plan. Use `qrspi-x:implement` to fix findings; Review only reports them.'
 disable-model-invocation: false
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Philosophy
 - Only review, never fix
 
-## Your Task
+## Task
 Spawn the `qrspi-x:reviewer` agent to perform the adversarial review in isolation. Resolve the scope to an exact diff command first (see Scope guidance), then pass it with the feature name, label, and phase number if any.
 
 ```

@@ -103,9 +103,9 @@ The agent is stricter because it is unattended. Don't import that strictness int
 
 ## Gate contracts
 
-`workflow` gates every transition. `autoloop` gates only entry and exit, and says so explicitly rather than quietly making an exception.
+`workflow` and `autoloop` both gate; they differ in granularity. `workflow` gates every step, `autoloop` gates the phase or the whole plan, and says which it is.
 
-If you add another orchestrator, state its gate contract in the skill itself. "Humans gate every transition" is `workflow`'s property, not a global invariant — but a skill that departs from it has to be honest about doing so, in the skill and in the README.
+If you add another orchestrator, state its gate granularity in the skill itself. "Humans gate every transition" holds across the plugin — what an orchestrator may choose is how much work sits behind one gate, never whether a human sees the result before it is integrated.
 
 ## Style
 

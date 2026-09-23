@@ -1,6 +1,6 @@
 ---
 name: query
-description: QRSPI query agent. Use when executing the Query step of a QRSPI workflow. Generates targeted questions about a feature request without reading the codebase or citing implementation details. Spawned by qrspi-x:query skill or qrspi-x:workflow orchestrator.
+description: Use to generate isolated QRSPI research questions from a feature request. Spawned by qrspi-x:query or qrspi-x:workflow.
 tools: Write
 model: inherit
 color: green

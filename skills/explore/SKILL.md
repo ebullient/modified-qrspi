@@ -1,33 +1,31 @@
 ---
 name: explore
-description: 'QRSPI optional pre-step: survey an area of the codebase to find gaps and candidate directions before a feature request can be written.'
-when_to_use: 'Use when the user wants a QRSPI exploration, or doesn''t yet know what to build within a QRSPI workflow (e.g. adapting a reference framework and unsure what capabilities are missing). Skip when the feature is already clear; use qrspi-x:init instead.'
+description: 'Use when a QRSPI feature is not yet defined and the codebase needs surveying for gaps and candidate directions.'
+when_to_use: 'Use when the user wants a QRSPI exploration or does not yet know what to build. Skip it when the feature is clear; use `qrspi-x:init` instead.'
 disable-model-invocation: false
 ---
 
 # QRSPI Explore
 
 ## Core Philosophy
-- explore.md is a survey, not a commitment
-- Optional — skip it entirely when you already know what to build; go straight to `qrspi-x:init`
-- Unlike Research (facts only, blind to intent) and Query (questions only, no opinions), Explore is allowed to synthesize and propose candidate directions — that's the point of it
-- Not part of the linear phase progression: one exploration can lead to zero, one, or several features, each starting its own `./qrspi/<feature>/` with Init. No `state.json` is created for the exploration itself
+- Survey and propose options; do not commit to a feature.
+- Optional: skip it when the feature is clear and use `qrspi-x:init`. It is not part of the linear workflow and creates no `state.json`.
 
-## Your Task
-Spawn the `qrspi-x:explorer` agent to survey the given topic/area. Pass an exploration name and the topic/area of interest:
+## Task
+Spawn `qrspi-x:explorer` with an exploration name and topic:
 
 ```
 Spawn qrspi-x:explorer agent for exploration: <exploration-name>
 Topic: <area of interest, e.g. "what does <reference framework> provide that this extension doesn't yet adapt">
 ```
 
-The agent has broad tool access (Read, Write, Bash, Glob, Grep) and is not scoped to a single feature's fixed question list the way Research is — it surveys, forms opinions, and proposes candidate directions. By default it stays within the current project (the parent of `qrspi`); if the survey should also cover a related reference/upstream repo on disk, name that path explicitly in the Topic so the agent knows it's in bounds.
+The agent surveys broadly, forms opinions, and proposes candidate directions. It stays in the current project unless the topic explicitly names a local reference or upstream path.
 
-Running explore as a subagent keeps its (likely large) volume of exploratory grep/find/read calls out of the main conversation context, same as Research and Review.
+Using a subagent keeps exploratory reads out of the main conversation.
 
 ## After the Agent Returns
-1. Review the explore.md summary the agent reports: observations, gaps, candidate directions, open questions
-2. Stop and wait for human review of `./qrspi/explore/<exploration-name>/explore.md`
-3. If a candidate direction is worth pursuing, start the normal workflow for it: run `qrspi-x:init` with a specific feature name, optionally pointing at `explore.md` as background
+1. Review its observations, gaps, candidate directions, and open questions.
+2. Stop for human review of `./qrspi/explore/<exploration-name>/explore.md`.
+3. If a direction is worth pursuing, start `qrspi-x:init` with a specific feature name; optionally provide `explore.md` as context.
 
 Do not write request.md, generate queries, or otherwise start the normal QRSPI flow automatically — Explore only produces the survey.
