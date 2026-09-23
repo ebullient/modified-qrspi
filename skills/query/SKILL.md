@@ -23,10 +23,16 @@ Always generate `queries.md` with the `qrspi-x:query` agent, so question generat
    - **Refinement** — this pass follows Research whose `research.md` has a non-empty `## New Questions` section.
    - **Regeneration** — `queries.md` exists and Query is being rerun after clarification, a backward jump, or an explicit request to revise questions.
 3. If `queries.md` exists, retain its complete contents and move it to `queries.md.bak` (or the next unused numbered backup). The agent can write a fresh file but cannot overwrite the old one.
-4. Spawn the agent with the feature name and `request.md` verbatim. In refinement mode, also pass prior queries and New Questions verbatim. In regeneration mode, pass prior queries verbatim and preserve still-relevant questions. Pass any post-Spec questions verbatim as `Additional questions from the human`; do not summarize, answer, or add research findings:
+4. Before spawning, prefer the declared agent when the runtime supports named agents:
+   - If `qrspi-x:query` is registered, spawn it directly so the runtime can apply its declared settings.
+   - Otherwise, read `../../agents/query.md`, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions.
+
+   In either case, include the feature name and `request.md` verbatim. In refinement mode, also pass prior queries and New Questions verbatim. In regeneration mode, pass prior queries verbatim and preserve still-relevant questions. Pass any post-Spec questions verbatim as `Additional questions from the human`; do not summarize, answer, or add research findings:
 
 ```
-Spawn qrspi-x:query agent for feature: <feature-name>
+If registered: Spawn qrspi-x:query agent
+Otherwise: Role instructions: <contents of ../../agents/query.md>; spawn a generic subagent
+Feature: <feature-name>
 Mode: <initial | refinement | regeneration>
 Feature request: <contents of request.md>
 Prior queries: <contents of the moved-aside queries.md — refinement or regeneration>

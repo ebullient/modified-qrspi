@@ -4,6 +4,23 @@ A modified version of Dexter Horthy's QRSPI method for spec-driven, human-gated 
 
 This README is for the human running the workflow. The `skills/*/SKILL.md` and `agents/*.md` files are instructions for the agents. This file explains how and why to use them, and what makes the human-approval steps actually work.
 
+## Package layout for agent roles
+
+Codex discovers the workflow skills by finding `SKILL.md` files under the package's `skills/` directory. It does not automatically register the Markdown files under `agents/` as named subagents. Each caller skill should prefer a registered named agent when the runtime provides one; otherwise, it loads the appropriate role definition and passes its contents to a generic subagent.
+
+Keep the role definitions bundled in an `agents/` directory that is a peer of `skills/` at the package root:
+
+```
+<package-root>/
+├── agents/
+│   └── <agent>.md
+└── skills/
+    └── <skill>/
+        └── SKILL.md
+```
+
+Caller skills resolve role files package-relatively (for example, `../../agents/query.md` from `skills/query/SKILL.md`). Keep the agent frontmatter for runtimes that support it. A generic fallback is behaviorally equivalent, but its tool permissions are runtime-dependent.
+
 ## Why this exists
 
 Horthy's retrospective on Research-Plan-Implement (["Everything We Got Wrong About Research-Plan-Implement"](https://www.youtube.com/watch?v=YwZR6tc7qYg)) found four recurring problems:

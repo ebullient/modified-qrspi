@@ -11,10 +11,17 @@ disable-model-invocation: false
 - Only review, never fix
 
 ## Task
-Spawn the `qrspi-x:reviewer` agent to perform the adversarial review in isolation. Resolve the scope to an exact diff command first (see Scope guidance), then pass it with the feature name, label, and phase number if any.
+Before spawning, prefer the declared agents when the runtime supports named agents:
+
+- If `qrspi-x:reviewer` is registered, spawn it directly so the runtime can apply its declared settings.
+- If the human requests an explanation and `qrspi-x:explainer` is registered, spawn it directly as well.
+- For any role that is not registered, read its bundled definition (`../../agents/reviewer.md` or `../../agents/explainer.md`), resolved relative to this `SKILL.md`, and spawn a generic subagent with the file contents as its role instructions.
+
+In either case, resolve the scope to an exact diff command first (see Scope guidance), then pass it with the feature name, label, and phase number if any.
 
 ```
-Spawn qrspi-x:reviewer agent for feature: <feature-name>
+If registered: Spawn qrspi-x:reviewer agent for feature: <feature-name>
+Otherwise: Role instructions: <contents of ../../agents/reviewer.md>; spawn a generic subagent for feature: <feature-name>
 Diff: <exact git diff command, or "staged">
 Phase: <N, or omit>
 Checkpoint step: <M for a mid-phase checkpoint, or omit when the whole phase is complete>
@@ -32,13 +39,15 @@ Before spawning, ask the user: "Also generate an explanation of this change? (`q
 If yes, spawn both agents in the same turn so neither sees the other's output:
 
 ```
-Spawn qrspi-x:reviewer agent for feature: <feature-name>
+If registered: Spawn qrspi-x:reviewer agent for feature: <feature-name>
+Otherwise: Role instructions: <contents of ../../agents/reviewer.md>; spawn a generic subagent for feature: <feature-name>
 Diff: <exact git diff command, or "staged">
 Phase: <N, or omit>
 Checkpoint step: <M for a mid-phase checkpoint, or omit when the whole phase is complete>
 Label: <unique label, e.g. "phase-2", "phase-2-step-1", or "final">
 
-Spawn qrspi-x:explainer agent for feature: <feature-name>
+If registered: Spawn qrspi-x:explainer agent for feature: <feature-name>
+Otherwise: Role instructions: <contents of ../../agents/explainer.md>; spawn a generic subagent for feature: <feature-name>
 Diff: <same as above>
 Phase: <same as above>
 Label: <same as above>

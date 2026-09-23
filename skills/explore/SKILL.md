@@ -12,10 +12,16 @@ disable-model-invocation: false
 - Optional: skip it when the feature is clear and use `qrspi-x:init`. It is not part of the linear workflow and creates no `state.json`.
 
 ## Task
-Spawn `qrspi-x:explorer` with an exploration name and topic:
+Before spawning, prefer the declared agent when the runtime supports named agents:
+
+- If `qrspi-x:explorer` is registered, spawn it directly so the runtime can apply its declared settings.
+- Otherwise, read `../../agents/explorer.md`, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions.
+
+In either case, pass an exploration name and topic:
 
 ```
-Spawn qrspi-x:explorer agent for exploration: <exploration-name>
+If registered: Spawn qrspi-x:explorer agent for exploration: <exploration-name>
+Otherwise: Role instructions: <contents of ../../agents/explorer.md>; spawn a generic subagent for exploration: <exploration-name>
 Topic: <area of interest, e.g. "what does <reference framework> provide that this extension doesn't yet adapt">
 ```
 

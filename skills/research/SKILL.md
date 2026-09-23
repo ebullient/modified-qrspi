@@ -11,10 +11,16 @@ disable-model-invocation: false
 - Gather facts, not opinions — only research and document findings
 
 ## Task
-Spawn the `qrspi-x:researcher` agent to explore the codebase in isolation. Pass the feature name so the agent can locate `./qrspi/<feature>/queries.md` and write `./qrspi/<feature>/research.md`. If the human named other locations the research should cover (e.g. a reference or upstream repo on disk), pass them as paths only — no description of the feature:
+Before spawning, prefer the declared agent when the runtime supports named agents:
+
+- If `qrspi-x:researcher` is registered, spawn it directly so the runtime can apply its declared settings.
+- Otherwise, read `../../agents/researcher.md`, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions.
+
+In either case, pass the feature name so the agent can locate `./qrspi/<feature>/queries.md` and write `./qrspi/<feature>/research.md`. If the human named other locations the research should cover (e.g. a reference or upstream repo on disk), pass them as paths only — no description of the feature:
 
 ```
-Spawn qrspi-x:researcher agent for feature: <feature-name>
+If registered: Spawn qrspi-x:researcher agent for feature: <feature-name>
+Otherwise: Role instructions: <contents of ../../agents/researcher.md>; spawn a generic subagent for feature: <feature-name>
 Additional locations: <paths, or omit>
 ```
 

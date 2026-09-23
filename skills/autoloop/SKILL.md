@@ -71,6 +71,15 @@ Write the `loop` block **before** each spawn, not after. A session that dies mid
 
 ## The loop
 
+Before each spawn, prefer the declared agent when the runtime supports named agents:
+
+- If `qrspi-x:implementer` or `qrspi-x:reviewer` is registered, spawn it directly so the runtime can apply its declared settings.
+- Otherwise, read the matching bundled role definition, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions:
+  - Implementer: `../../agents/implementer.md`
+  - Reviewer: `../../agents/reviewer.md`
+
+Apply the same rule to implementation, review, repair, and re-review spawns.
+
 For each phase in scope, in order:
 
 ### 1. Implement
