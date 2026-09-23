@@ -16,7 +16,7 @@ Before spawning, prefer the declared agent when the runtime supports named agent
 - If `qrspi-x:researcher` is registered, spawn it directly so the runtime can apply its declared settings.
 - Otherwise, read `../../agents/researcher.md`, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions.
 
-In either case, pass the feature name so the agent can locate `./qrspi/<feature>/queries.md` and write `./qrspi/<feature>/research.md`. If the human named other locations the research should cover (e.g. a reference or upstream repo on disk), pass them as paths only — no description of the feature:
+In either case, pass the feature name so the agent can locate `./qrspi/<feature>/queries.md` and write `./qrspi/<feature>/research.md`. If the human named other locations the research should cover (e.g. a reference or upstream repo on disk), pass them as paths only — no description of the feature. Do not pass `./qrspi/<feature>/background.md` as an additional location; it is human context, not a Research input:
 
 ```
 If registered: Spawn qrspi-x:researcher agent for feature: <feature-name>

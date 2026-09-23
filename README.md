@@ -35,12 +35,12 @@ QRSPI-X addresses each one:
 - **Research gets biased by the feature idea** → Query and Research each run in their own isolated subagent with limited tools. Query only gets `Write` — it can't read the codebase even if it tried. Neither subagent sees the other's reasoning or the main conversation.
 - **Plans are unreadable** → the plan always has two layers: a short phase overview (`plan.md`) you can read in one pass, and per-phase detail files you only open when you're implementing that phase.
 - **Layer-by-layer plans hide integration bugs** → you approve phase boundaries *before* `plan.md` is written, not after. You're approving how the work is cut up, not just what's inside each piece.
-- **One prompt does too much** → each stage of the pipeline (Query, Research, Spec, Plan, Implement, Review) is its own skill with one job, run fresh instead of piled into a single prompt.
+- **One prompt does too much** → each stage of the pipeline (Query, Research, Shape, Spec, Plan, Implement, Review) is its own skill with one job, run fresh instead of piled into a single prompt.
 
 ## The pipeline
 
 ```
-(Explore) → Init → Query ⇄ Research → Spec → Plan → Implement → Review
+(Explore) → Init → Query ⇄ Research → [Shape] → Spec → Plan → Implement → Review
 ```
 
 | Phase | What it does | Runs as |
@@ -49,14 +49,15 @@ QRSPI-X addresses each one:
 | Init | Write down the feature request as-is, into `request.md` | main conversation |
 | Query | Generate questions from the request — no codebase access | isolated subagent, `Write`-only |
 | Research | Answer those questions by reading the codebase — facts only, no opinions | isolated subagent, full read tools |
+| Shape *(optional)* | Compare viable implementation approaches using the request and research context | isolated subagent, broad read tools |
 | Spec | Define what changes and what doesn't | main conversation |
 | Plan | Break the spec into small, ordered steps; **you approve the phase boundaries before the files are written** | main conversation |
 | Implement | Do one step at a time, commit after each, pause for approval | main conversation |
 | Review | Adversarial check against the spec and plan; PASS / PASS WITH CONDITIONS / FAIL. Optionally also spawns an explainer for a narrative walkthrough of the change | isolated subagent(s), full read tools |
 
-Query and Research can loop — research turns up a new question, you go back to query, then research again — for as long as needed. Everything after Spec runs in order, but you can always go back a step: "back to research," "revise spec," "revise plan" are all valid at any approval point.
+Query and Research can loop — research turns up a new question, you go back to Query, then Research again — for as long as needed. Shape is optional: use it when multiple implementation approaches remain, and skip it when the direction is obvious. Shape can also send unresolved evidence gaps back to Query/Research. Everything after Spec runs in order, but you can always go back a step: "back to research," "revise shape," "revise spec," and "revise plan" are all valid at an approval point.
 
-State is saved in `./qrspi/<feature>/state.json`, so you can pause a workflow and pick it up later in a fresh conversation without re-explaining where it left off.
+State is saved in `./qrspi/<feature>/state.json`, so you can pause a workflow and pick it up later in a fresh conversation without re-explaining where it left off. An optional `background.md` may preserve human-supplied context and prior-art comparisons; it is not authoritative intent and is not an automatic input to Query or Research. When Shape runs, `approach.md` records the alternatives, tradeoffs, and human-selected direction before Spec.
 
 ## How to actually run this well
 
@@ -64,7 +65,7 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 
 **Run Review on a different model or provider than the one that wrote the code.**
 
-- Every agent here (`query`, `researcher`, `reviewer`, `explainer`, `explorer`) is set to `model: inherit` — the subagent runs on whatever model drives your current session.
+- Every agent here (`query`, `researcher`, `shaper`, `reviewer`, `explainer`, `explorer`) is set to `model: inherit` — the subagent runs on whatever model drives your current session.
 - That isolates the reviewer from the conversation history, but not from that model's blind spots. A model tends to miss the same things reviewing its own work that it missed writing it.
 - So do it yourself: start Review in a different harness or with a different model than the one that ran Implement. It's easy to forget out of habit — watch for that.
 
@@ -107,7 +108,7 @@ Non-blocking findings (`PASS WITH CONDITIONS`) don't stop the loop — they accu
 
 ## Cleanup
 
-Once the final review passes, the workflow offers to clean up (and asks before removing anything). It keeps `request.md`, `spec.md`, `reviews/`, and `state.json`, and moves only the enumerated generated artifacts (`queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, query backups, and `explain/`) to recoverable trash. Product/source files must be tracked or staged and included in the final review before cleanup. Use your own judgement for long-term utility vs. noise.
+Once the final review passes, the workflow offers to clean up (and asks before removing anything). It keeps `request.md`, `background.md` when present, `approach.md` when Shape ran, `spec.md`, `reviews/`, and `state.json`, and moves only the enumerated generated artifacts (`queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, query backups, and `explain/`) to recoverable trash. Product/source files must be tracked or staged and included in the final review before cleanup. Use your own judgement for long-term utility vs. noise.
 
 ## See also
 

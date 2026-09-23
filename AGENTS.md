@@ -43,7 +43,7 @@ Tools are the minimum the agent needs. `query` gets `Write` only — it *cannot*
 
 `implementer` is the only agent with `Edit`, because it's the only one that writes product code.
 
-Colors are cosmetic, but currently unique per agent — keep them that way when adding one, so a color identifies an agent at a glance in a multi-agent run. Taken: purple (explainer), yellow (explorer), orange (implementer), green (query), blue (researcher), red (reviewer).
+Colors are cosmetic, but currently unique per agent — keep them that way when adding one, so a color identifies an agent at a glance in a multi-agent run. Taken: purple (explainer), yellow (explorer), orange (implementer), green (query), blue (researcher), red (reviewer), cyan (shaper).
 
 ### Skill frontmatter
 
@@ -100,6 +100,8 @@ The differences are intentional and should not be "fixed" into agreement:
 The agent is stricter because it is unattended. Don't import that strictness into the interactive skill, and don't relax it in the agent.
 
 **Diff scope resolution** appears in `reviewer`, `explainer`, and `explorer` with near-identical wording (the `git merge-base` fallback, the untracked-files check, the allowed-artifact list). These drifting apart is a real risk; check the others when you touch one.
+
+**The QRSPI artifact inventory** is repeated in the reviewer agent's untracked-file allowlist, the workflow and README cleanup keep/remove lists, and the workflow staleness rules. When adding or renaming an artifact, update every copy together so reviewers, cleanup, and resume logic agree about what is metadata, what is retained, and what becomes stale.
 
 ## Gate contracts
 

@@ -66,16 +66,17 @@ Step numbers are local to each phase file — each phase starts at Step 1. For s
 - Phases may be listed in a convenient default order, but only concrete prerequisites create dependencies. Independent phases remain unlinked even when they are listed consecutively.
 
 ## Process
-1. Read `./qrspi/<feature>/spec.md` and research artifacts
-2. Draft the full list of atomic steps
-3. If total steps > 5: group into phases, each with a clear name and goal; pause and present the proposed phase breakdown to the user for approval before writing files
-4. Once the phase structure is approved (or steps ≤ 5), perform the dependency check for every phase:
+1. Read `./qrspi/<feature>/spec.md`, `./qrspi/<feature>/research.md`, and `./qrspi/<feature>/approach.md` when Shape was run
+2. If `approach.md` exists, read `state.json` and stop unless `approachDecision` is non-null; the plan must not bypass the Shape decision gate.
+3. Draft the full list of atomic steps, honoring the selected approach when `approach.md` exists
+4. If total steps > 5: group into phases, each with a clear name and goal; pause and present the proposed phase breakdown to the user for approval before writing files
+5. Once the phase structure is approved (or steps ≤ 5), perform the dependency check for every phase:
    - Ignore the phase's position in the table and identify the concrete inputs it requires from work in another phase.
    - If another phase produces a required input, record that phase's ID in `Depends On` and name the required output in the phase's `Dependencies` section.
    - If the phase can be implemented and reviewed without output from another phase, record `none`.
    - Do not create an edge merely because a phase is listed earlier or because serial execution is more convenient.
-5. Write `plan.md` with the phase overview table, then write each `plan-phase-N.md`
-6. If `state.json` exists, update it idempotently: set `currentPhase: "definition"` and `currentStep: "plan"`, ensure `"plan"` appears only once in `completedSteps`, set `planPhase: 1` for a new plan, and append one history entry. When this is a plan revision after implementation began, rewrite phase and step markers as not started, reset `planPhase`, `phaseBaseSha`, `activePlanStep`, and `completedPlanSteps`, and record the revision in `decisions` so stale execution progress is not reused.
-7. Stop and wait for human review of the complete plan
+6. Write `plan.md` with the phase overview table, then write each `plan-phase-N.md`
+7. If `state.json` exists, update it idempotently: set `currentPhase: "definition"` and `currentStep: "plan"`, ensure `"plan"` appears only once in `completedSteps`, set `planPhase: 1` for a new plan, and append one history entry. When this is a plan revision after implementation began, rewrite phase and step markers as not started, reset `planPhase`, `phaseBaseSha`, `activePlanStep`, and `completedPlanSteps`, and record the revision in `decisions` so stale execution progress is not reused.
+8. Stop and wait for human review of the complete plan
 
 Do not start implementation. Your job ends when all plan files are written.

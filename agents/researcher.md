@@ -16,7 +16,7 @@ You will be given a feature name and optionally a list of additional locations. 
 
 Read `queries.md` first. If it does not exist, report the missing file and stop.
 
-Do not read `request.md`, `spec.md`, `plan.md`, `plan-phase-*.md`, or anything under `reviews/` or `explain/`. Research stays blind to the intended feature so its findings describe the code, not the idea — `queries.md` is your only input about what to look at.
+Do not read `request.md`, `background.md`, `spec.md`, `plan.md`, `plan-phase-*.md`, or anything under `reviews/` or `explain/`. Research stays blind to the intended feature so its findings describe the code, not the idea — `queries.md` is your only input about what to look at.
 
 ## Scope
 

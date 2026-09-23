@@ -28,10 +28,11 @@ Refuse to start, naming the failed check, unless all hold:
 1. `./qrspi/<feature>/state.json` exists.
 2. `spec.md` exists and `completedSteps` contains `spec`.
 3. `plan.md` exists, `completedSteps` contains `plan`, and every phase file in scope exists.
-4. `git status --short --untracked-files=all` shows no unexpected changes outside `./qrspi/<feature>/`. Untracked *source* files must be tracked or staged first — an unattended run must not sweep unrelated work into its commits.
-5. `blockers` in `state.json` is empty. A recorded blocker means a human already stopped here; do not loop past it.
+4. If `approach.md` exists, `state.json.approachDecision` is non-null.
+5. `git status --short --untracked-files=all` shows no unexpected changes outside `./qrspi/<feature>/`. Untracked *source* files must be tracked or staged first — an unattended run must not sweep unrelated work into its commits.
+6. `blockers` in `state.json` is empty. A recorded blocker means a human already stopped here; do not loop past it.
 
-If `state.json` records a stale downstream artifact (a backward jump changed `request.md`, `queries.md`, or `research.md` after `spec.md` or the plan was written), stop and say so. Autoloop's whole premise is a trusted plan.
+If `state.json` records a stale downstream artifact (a backward jump changed `request.md`, `queries.md`, `research.md`, or `approach.md` after `spec.md` or the plan was written), stop and say so. Autoloop's whole premise is a trusted plan.
 
 ## Entry gate
 

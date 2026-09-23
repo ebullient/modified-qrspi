@@ -17,7 +17,7 @@ Always generate `queries.md` with the `qrspi-x:query` agent, so question generat
 
 1. Check `./qrspi/<feature>/request.md`.
    - If it exists, read it — this is the feature intent to pass to the agent.
-   - If it doesn't exist (the `qrspi-x:init` step was skipped), capture the feature request from the current conversation/command and write `./qrspi/<feature>/request.md` with it yourself, plus an initial `state.json` (see `qrspi-x:workflow`'s schema), before continuing.
+   - If it doesn't exist (the `qrspi-x:init` step was skipped), capture the feature request from the current conversation/command and write `./qrspi/<feature>/request.md` with it yourself, plus an initial `state.json` (see `qrspi-x:workflow`'s schema), before continuing. If the human separately supplied background context, preserve it in optional `./qrspi/<feature>/background.md`; do not pass that context to the isolated Query agent.
 2. Determine the mode before moving any artifact:
    - **Initial** — no `queries.md` exists.
    - **Refinement** — this pass follows Research whose `research.md` has a non-empty `## New Questions` section.
