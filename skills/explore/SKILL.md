@@ -11,6 +11,8 @@ disable-model-invocation: false
 - Survey and propose options; do not commit to a feature.
 - Optional: skip it when the feature is clear and use `qrspi-x:init`. It is not part of the linear workflow and creates no `state.json`.
 
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly. Helper state is not used for Explore; the exploration artifact is the source of progress.
+
 ## Task
 Before spawning, prefer the declared agent when the runtime supports named agents:
 

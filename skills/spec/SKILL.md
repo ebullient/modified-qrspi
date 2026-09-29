@@ -3,12 +3,18 @@ name: spec
 description: 'Use when defining the behavioral delta for a QRSPI feature.'
 when_to_use: 'Use for the Spec step after Query ↔ Research and, when needed, optional Shape are complete. Use `qrspi-x:shape` if multiple implementation approaches remain; use `qrspi-x:query` or `qrspi-x:research` if intent or codebase facts are still unclear.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Spec
 
 ## Core Philosophy
 - Specs describe changes, not the entire system — only define the behavioral contract
+
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly.
+
+## The helper
+Helper installation, state tracking, recovery, and artifact-only fallback are defined by `qrspi-x:workflow`. When the helper is available, run `qrspi-x record spec --feature <feature> --project <path>` and surface its findings. If it exits 127, continue this interactive step without state tracking. Never edit `state.json` manually.
 
 ## Task
 Using the settled request, queries, research, and the selected approach when `approach.md` exists, define exactly what changes. Cover:
@@ -36,15 +42,16 @@ Before writing any spec, confirm that `request.md` captures a clear, agreed-upon
 
 1. Read `./qrspi/<feature>/request.md`.
 2. Read `./qrspi/<feature>/queries.md` and `./qrspi/<feature>/research.md`.
-3. If `./qrspi/<feature>/approach.md` exists, read `state.json` and verify that `approachDecision` is non-null. If the field is missing or null, **stop** and ask the human to approve or refine the approach before writing the spec. Keep `approach.md`'s `## Human Decision` section synchronized for human-readable rationale, but use the state field as the gate.
+3. If `approach.md` exists, verify that its `## Decision` section is decided (holds something other than `None.`). If not, stop and ask the human to approve or refine the approach.
 4. Check `request.md` for a non-empty `## Open Questions` section — these are Questions for the User from the query cycles that haven't been answered yet. If any remain, **stop**, surface them to the human, and wait for answers; move each answered question to `## Clarifications` with its answer before continuing. Check `research.md`'s `## New Questions` too: if it is non-empty, **stop** and return to Query before writing the spec.
 5. Confirm the request reads as a concrete feature intent, not as a conversational fragment or a list of still-open options. If it is too vague or contradictory to support a behavioral delta, **stop**, describe what is unclear, and wait for the human to refine `request.md`.
 6. Only proceed once `request.md` is settled and any existing approach is selected. If the request is already clear and no approach artifact exists, continue without requiring Shape — this is an optional step.
 
 ### Step 1 — Define the behavioral delta
 1. Using the settled `request.md`, `queries.md`, `research.md`, and selected `approach.md` when present, define the behavioral delta
-2. Write to `./qrspi/<feature>/spec.md`
-3. If `state.json` exists, update it idempotently: set `currentPhase: "definition"` and `currentStep: "spec"`, ensure `"spec"` appears only once in `completedSteps`, and append one history entry.
-4. Stop and wait for human review
+2. If `spec.md` exists, retain its complete contents and move it to `./qrspi/<feature>/backups/spec-<n>.md`, where `n` is one greater than the highest `n` already present for the `spec` stem, starting at 1. Never rename, rotate, or overwrite an existing backup — writing one is always a pure addition. Create `backups/` only when there is something to put in it.
+3. Write to `./qrspi/<feature>/spec.md`
+4. If the helper is available, run `qrspi-x record spec --feature <feature> --project <path>`. For a rerun after a backward jump, add `--mode revision --reason "<why>"`. Surface returned findings with the human.
+5. Stop and wait for human review
 
 Do not create implementation plans. Your job ends when spec.md is written.

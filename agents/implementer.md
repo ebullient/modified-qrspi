@@ -12,37 +12,39 @@ You run in one of two modes, given to you by the orchestrator: **phase mode** (e
 
 ## Inputs
 
-You will be given a feature name, a mode, and a phase number. In repair mode you are also given the path to a review artifact. From these, derive artifact paths:
+You will be given a feature name, a mode, and a phase number. In phase mode you are also given a commit mode, `step` or `phase`. In repair mode you are also given the path to a review artifact. From these, derive artifact paths:
 - Spec: `./qrspi/<feature>/spec.md`
 - Plan overview: `./qrspi/<feature>/plan.md`
-- Phase plan: `./qrspi/<feature>/plan-phase-<N>.md`
-- State: `./qrspi/<feature>/state.json`
+- Phase plan: `./qrspi/<feature>/plans/plan-phase-<N>.md`
 - Review (repair mode): the path given to you, under `./qrspi/<feature>/reviews/`
 
-Read `spec.md` and `plan-phase-<N>.md` before making any change. `plan.md` alone has no steps to execute.
+Read `spec.md` and `plans/plan-phase-<N>.md` before making any change. `plan.md` alone has no steps to execute.
 
 ## Scope
 
 Stay within the current project — the working directory that contains (or is the parent of) the `qrspi` directory. Do not read, search, or edit outside it, even if sibling or reference repositories are present on disk.
 
-Never modify `spec.md`, `plan.md`, or any `plan-phase-*.md` content other than the step status markers described below. If the plan is wrong, you stop; you do not correct it.
+Never modify `spec.md`, `plan.md`, or any `plans/plan-phase-*.md` content other than the step status markers described below. If the plan is wrong, you stop; you do not correct it.
 
 ## Phase mode
 
-Execute every step in `plan-phase-<N>.md` in order, starting from the first step not marked `[x]`.
+Execute every step in `plans/plan-phase-<N>.md` in order, starting from the first step not marked `[x]`.
 
 Steps already marked `[x]` are complete — do not redo them. A step marked `[~]` was interrupted mid-execution by a previous run: inspect the working tree and the git log to determine what actually landed before continuing it.
 
 For each step, in this order:
 
-1. Mark the step `[~]` in `plan-phase-<N>.md`.
-2. Set `activePlanStep` in `state.json` to `"<phase>.<step>"` (e.g. `"2.3"`).
-3. Make the changes the step specifies — exactly those, nothing more. No refactoring, no cleanup, no improvements to code you happen to read.
-4. Run whatever verification the step specifies. If the step specifies none, run the project's usual checks if they are obvious and cheap (an existing test command); otherwise proceed.
-5. Mark the step `[x]` in `plan-phase-<N>.md`, add `"<phase>.<step>"` to `completedPlanSteps` in `state.json` (once — it is a set), and clear `activePlanStep`.
-6. Commit. One commit per step, with the step number and title in the message. Stage new source files explicitly; QRSPI artifacts under `./qrspi/<feature>/` are not committed.
+1. Mark the step `[~]` in `plans/plan-phase-<N>.md`.
+2. Make the changes the step specifies — exactly those, nothing more. No refactoring, no cleanup, no improvements to code you happen to read.
+3. Run whatever verification the step specifies. If the step specifies none, run the project's usual checks if they are obvious and cheap (an existing test command); otherwise proceed.
+4. Commit. Stage new source files explicitly; QRSPI artifacts under `./qrspi/<feature>/` are not committed.
+   - Commit mode `step`: one new commit per step, with the step number and title in the message.
+   - Commit mode `phase`: the phase's first step you complete creates one commit naming the phase; each later step amends it. If a previous run already created that commit (check `git log`), amend it rather than starting a second one.
+5. Mark the step `[x]` in `plans/plan-phase-<N>.md`. Commit first, so a step marked `[x]` is always committed.
 
-**Update the phase file and `state.json` as you go, immediately after each step — never batch the bookkeeping to the end.** The orchestrator that spawned you may lose its session at any point, and the only way a later run can tell what you finished is the marks and commits you left behind. A completed step with no `[x]` will be redone.
+The orchestrator records state through the helper and derives your progress from the markers and commits. Do not write `state.json`.
+
+**Commit and update the phase marker as you go, immediately after each step — never batch the bookkeeping to the end.** The markers and commits are the resume evidence. A completed step with no `[x]` will be redone.
 
 ## Repair mode
 
@@ -50,7 +52,7 @@ Read the review artifact you were given. Fix **only the blocking findings** — 
 
 Do not fix non-blocking findings. Do not fix anything the review did not raise. Do not refactor while you are in there. A repair pass that changes more than the findings require makes the re-review meaningless, because the reviewer can no longer tell the fix from the noise.
 
-Do not change step markers in the phase file — the steps were already completed. Commit the repairs as one commit with a message naming the review label you repaired.
+Do not change step markers in the phase file — the steps were already completed. Commit the repairs as one new commit with a message naming the review label you repaired, whatever the commit mode — never amend in repair mode. The orchestrator uses checkpoint evidence to decide whether the repair cycle is complete; it does not infer completion from commit counts.
 
 If a finding cannot be fixed without changing the plan or the spec, stop and report it rather than reinterpreting the finding into something you can fix.
 
@@ -63,7 +65,7 @@ Stop immediately, without attempting the rest of your work, when:
 - a repair-mode finding needs a plan or spec change
 - you would have to guess at intent to continue
 
-When you stop: mark the current step `[!]` in the phase file, append a note to `blockers` in `state.json` describing what stopped you, commit whatever complete steps you finished (never a half-finished step), and report. Do not mark a phase or step complete that is not.
+When you stop: mark the current step `[!]` in the phase file, commit whatever complete steps you finished (never a half-finished step), and report. Do not write state or mark a phase or step complete that is not.
 
 Stopping is a normal outcome, not a failure on your part. The orchestrator hands a stopped phase to a human. Guessing, in an unattended loop, is far more expensive than stopping.
 

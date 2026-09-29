@@ -1,23 +1,28 @@
 ---
 name: review
-description: 'Use when adversarially reviewing QRSPI changes against a spec and plan.'
-when_to_use: 'Use for a phase checkpoint, final review, or one-off review with a QRSPI spec and plan. Use `qrspi-x:implement` to fix findings; Review only reports them.'
+description: 'Use when adversarially reviewing QRSPI changes against a spec.'
+when_to_use: 'Use for a phase checkpoint, final review, or one-off review of a QRSPI change against its spec. Use `qrspi-x:implement` to fix findings; Review only reports them.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Review
 
 ## Core Philosophy
 - Only review, never fix
+- Review against the spec; the plan only sets the scope
+
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly.
+
+## The helper
+Helper installation, state tracking, recovery, and artifact-only fallback are defined by `qrspi-x:workflow`. When the helper is available, get the next label from `qrspi-x report --feature <feature> --project <path>` and record the verdict with `qrspi-x record review --feature <feature> --project <path> --label <label>`; never compose a label by hand. If it exits 127, continue this interactive step without state tracking. Never edit `state.json` manually.
 
 ## Task
-Before spawning, prefer the declared agents when the runtime supports named agents:
 
-- If `qrspi-x:reviewer` is registered, spawn it directly so the runtime can apply its declared settings.
-- If the human requests an explanation and `qrspi-x:explainer` is registered, spawn it directly as well.
-- For any role that is not registered, read its bundled definition (`../../agents/reviewer.md` or `../../agents/explainer.md`), resolved relative to this `SKILL.md`, and spawn a generic subagent with the file contents as its role instructions.
-
-In either case, resolve the scope to an exact diff command first (see Scope guidance), then pass it with the feature name, label, and phase number if any.
+1. **Resolve the scope** to an exact diff command, so neither agent has to guess. See **Reviewer Agent → Scope guidance**.
+2. **Get a unique label.** If the helper is available, run `qrspi-x report --feature <feature> --project <path>` (add `--phase <N>` for a phase other than the active one) and take `result.labels.phase` for a completed phase, `result.labels.step` for a mid-phase checkpoint, or `result.labels.final` for a final review — never compose a helper-backed label by hand. Without the helper, use the phase name converted to a kebab-case path component; for an unphased final review use `final`. If that label already exists, append `-r2`, then `-r3`, and so on until unused.
+3. **Ask whether to run the explainer too** — it is opt-in, and both agents must spawn in the same turn, so ask before spawning anything. See **Explainer Agent**.
+4. **Spawn** the reviewer, plus the explainer on a clear yes, in a single turn so neither sees the other's output.
 
 ```
 If registered: Spawn qrspi-x:reviewer agent for feature: <feature-name>
@@ -28,50 +33,70 @@ Checkpoint step: <M for a mid-phase checkpoint, or omit when the whole phase is 
 Label: <unique label, e.g. "phase-2", "phase-2-step-1", or "final">
 ```
 
-The agent reads `spec.md` and `plan.md` from disk, checks prior review artifacts, runs the diff, and writes a verdict to `./qrspi/<feature>/reviews/<label>.md`.
-
-Running review as a subagent keeps diff output and file reads out of the main conversation context while preserving the QRSPI-specific spec conformance and plan fidelity checks that generic code review tools lack.
-
-## Optional: Explain alongside Review
-
-Before spawning, ask the user: "Also generate an explanation of this change? (`qrspi-x:explainer` — a narrative walkthrough of what changed and why, independent of and isolated from the reviewer; not a verification step, just faster orientation.)" Wait for the answer, and spawn the explainer only on a clear yes — this is opt-in, not a standing part of the flow.
-
-If yes, spawn both agents in the same turn so neither sees the other's output:
-
 ```
-If registered: Spawn qrspi-x:reviewer agent for feature: <feature-name>
-Otherwise: Role instructions: <contents of ../../agents/reviewer.md>; spawn a generic subagent for feature: <feature-name>
-Diff: <exact git diff command, or "staged">
-Phase: <N, or omit>
-Checkpoint step: <M for a mid-phase checkpoint, or omit when the whole phase is complete>
-Label: <unique label, e.g. "phase-2", "phase-2-step-1", or "final">
-
+Only on a clear yes to the explainer:
 If registered: Spawn qrspi-x:explainer agent for feature: <feature-name>
 Otherwise: Role instructions: <contents of ../../agents/explainer.md>; spawn a generic subagent for feature: <feature-name>
-Diff: <same as above>
-Phase: <same as above>
-Label: <same as above>
+Diff / Phase / Label: identical to the reviewer's
 ```
 
-The explainer writes to `./qrspi/<feature>/explain/<label>.md`. Labels must be non-empty kebab-case path components; if the requested review or explanation label already exists, choose the next unused suffix (for example `phase-2-r2`) rather than overwriting it. If a collision occurs after spawning, the agent stops instead of overwriting. This is most useful at final review, where a whole-picture narrative pays off most, but can be offered at phase checkpoints too.
+Prefer the declared agents whenever the runtime supports named agents, so it can apply their declared settings. For a role that is not registered, read its bundled definition (`../../agents/reviewer.md` or `../../agents/explainer.md`), resolved relative to this `SKILL.md`, and spawn a generic subagent with the file contents as its role instructions.
+
+Then go to **After the Reviewer Returns**.
+
+## Reviewer Agent
+
+The reviewer reads `spec.md` as the standard it reviews against and the plan files to establish the boundaries of the review, runs the diff, and writes a verdict to `./qrspi/<feature>/reviews/<label>.md`.
+
+Running it as a subagent keeps diff output and file reads out of the main conversation context while preserving the QRSPI-specific spec conformance check that generic code review tools lack.
+
+### Scope guidance
+
+First check the working tree with `git status --short --untracked-files=all`. An untracked source file outside `qrspi/` must be tracked or staged, or it escapes the diff and the reviewer fails the review on it. Tracked modifications are already in the diff and need no action. Anything under `qrspi/` is the project's business, tracked or not: the reviewer ignores it either way.
+
+Then pick the scope:
+
+| Scope | Diff to pass |
+|-------|--------------|
+| Phase checkpoint | `result.diff` from `report`, exactly as given — it diffs from the phase's base even when the phase began before the first commit |
+| Full branch / final | `git diff $(git merge-base HEAD <default-branch>)`, where `<default-branch>` comes from `git symbolic-ref refs/remotes/origin/HEAD`, else `main` |
+| Specific files | the base diff with paths appended: `git diff <base> -- path/a.ts` |
+| Staged changes | `staged` |
+| Explicit | the human's command, unchanged |
+
+For a phase checkpoint also pass `Phase: N`, and `Checkpoint step: M` mid-phase — the explicit step is authoritative. If `report` returns no `diff`, the phase has no recorded base: ask the human for the base commit rather than guessing.
+
+## Explainer Agent
+
+Optional and opt-in, never a standing part of the flow. Ask: "Also generate an explanation of this change? (`qrspi-x:explainer` — a narrative walkthrough of what changed and why, independent of and isolated from the reviewer; not a verification step, just faster orientation.)" It can be offered for either final or checkpoint reviews. Wait for the answer, and spawn it only on a clear yes.
+
+### Output
+
+The explainer writes to `./qrspi/<feature>/explain/<label>.md`, reusing the reviewer's label so the pair is findable together. Labels must be non-empty kebab-case path components.
 
 Treat the explainer's output as unverified narrative, not a substitute for the diff or for the reviewer's findings — if the two disagree about what the code does, that disagreement is itself worth looking at before trusting either one.
 
-## Scope guidance
-Resolve the scope to an exact diff command before spawning, so the agent never has to guess:
-- Phase checkpoint: read `phaseBaseSha` from `state.json` and pass `git diff <phaseBaseSha>`. QRSPI artifacts under `./qrspi/<feature>/` are intentionally outside the product diff and are read directly by the agent; do not stage them. Before spawning, inspect `git status --short --untracked-files=all`: any untracked implementation/source file must be tracked or staged, and any unexpected change outside the feature's QRSPI directory must be reported and resolved. Pass `Phase: N`, `Checkpoint step: M` for a mid-phase checkpoint, and a unique label: use `phase-N-step-M` for a mid-phase checkpoint and `phase-N` only when the whole phase is complete. The explicit checkpoint step remains authoritative even after Implement clears `activePlanStep`. If `phaseBaseSha` is missing, ask the human for the base commit rather than guessing.
-- Full branch / final: pass `git diff $(git merge-base HEAD <default-branch>)`, where `<default-branch>` is the repository's default branch (e.g. from `git symbolic-ref refs/remotes/origin/HEAD`, else `main`). Pass `Label: final`.
-- Specific files: append them, e.g. `git diff <base> -- path/a.ts path/b.ts`
-- Staged changes: pass `staged`
-- Explicit: if the human gave a diff command, pass it unchanged
+## Running other review tools
 
-## After the Agent Returns
-1. Read the verdict the agent reports (PASS / PASS WITH CONDITIONS / FAIL)
-2. If the explainer was also spawned, note that `explain/<label>.md` is available as supplementary reading — do not merge its content into the verdict or treat it as part of the review
-3. If `state.json` exists, append one `history` entry for the review with its unique label, verdict, and artifact path (e.g. `{"step": "review", "label": "phase-2-r2", "verdict": "PASS", "artifact": "reviews/phase-2-r2.md", ...}`); for a final review, also set `currentPhase: "execution"`, `currentStep: "review"`, and ensure `"review"` appears only once in `completedSteps`
-4. Stop and wait for human decision on how to proceed
-5. If FAIL: offer to fix and re-implement, revise plan, or revise spec
-6. If PASS WITH CONDITIONS: offer to address findings then re-review
-7. If this was a mid-phase checkpoint that passed, offer to continue with the next incomplete step in the same phase. If this was a phase-complete checkpoint that passed, offer to continue with the next phase (or Final Review if this was the last phase).
+This review's contribution is narrow — it checks the diff against `spec.md` and writes the verdict artifact the workflow records — and it is not a better bug-finder than a dedicated review tool. So:
+
+- **Run others alongside it.** `/code-review`, `/security-review`, a project reviewer, a linter, a human. Offer when useful; don't argue when asked. Their findings and this verdict are complementary.
+- **Never fold their output into a review artifact yourself.** For it to count toward a verdict, the human either hands it to the reviewer on a re-review with a fresh label, or explicitly accepts the fixes without another agent review (see **Accepting fixes without another agent review**).
+
+## After the Reviewer Returns
+
+1. Confirm `./qrspi/<feature>/reviews/<label>.md` exists before anything else. Do not write it yourself from the reviewer's reply: that reply is a verdict line, so the artifact would have no findings table and no Spec Conformance list — and a repair pass reads its fixes from those. Re-spawn the reviewer with the same label and diff, asking it to write the artifact.
+2. Read the verdict the reviewer reports (PASS / PASS WITH CONDITIONS / FAIL).
+3. If the explainer was also spawned, note that `explain/<label>.md` is available as supplementary reading — do not merge its content into the verdict or treat it as part of the review.
+4. If the helper is available, run `qrspi-x record review --feature <feature> --project <path> --label <label>` and surface returned findings. The helper reads the verdict from the artifact.
+5. Stop and wait for the human's decision on how to proceed:
+   - **FAIL** — offer to fix and re-implement, revise the spec, or revise the plan. A finding means the code missed the spec, so fixing the code is usually the answer; revise the spec only when the finding shows the spec itself was wrong, and the plan only when the remaining steps no longer fit.
+   - **PASS WITH CONDITIONS** — offer to address findings, then re-review.
+   - **PASS, mid-phase checkpoint** — offer to continue with the next incomplete step in the same phase.
+   - **PASS, phase complete** — offer to continue with the next phase, or Final Review if this was the last one.
 
 Do not fix issues or create PRs automatically.
+
+### Accepting fixes without another agent review
+
+When the human explicitly accepts fixes without another agent review, write the next review artifact (the next label from `report`, or the deterministic no-helper label described above) with a `## Verdict: PASS` line and a short note of what was fixed and where. If the helper is available, then run `qrspi-x record review --feature <feature> --project <path> --label <that label>` on the human's behalf. The human's explicit approval is required; the artifact is the durable evidence, and an acceptance recorded only in state can be lost during recovery.

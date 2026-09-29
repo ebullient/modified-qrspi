@@ -3,6 +3,7 @@ name: query
 description: 'Use when generating isolated research questions from a QRSPI feature request.'
 when_to_use: 'Use for the Query step, including refinement after Research surfaces new questions. Use `qrspi-x:research` to answer the questions; Query must not read the codebase.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Query
@@ -12,17 +13,22 @@ disable-model-invocation: false
 - Questions come from the feature request, not the codebase - exploring the code to ground or answer questions is Research's job, not Query's
 - Not every question is for Research - some are about intent only the requester can resolve; those get asked and answered directly, then folded into request.md, never left sitting in queries.md
 
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly.
+
+## The helper
+Helper installation, state tracking, recovery, and artifact-only fallback are defined by `qrspi-x:workflow`. When the helper is available, run `qrspi-x record query --feature <feature> --project <path> --mode <initial|refinement|regeneration>` and surface its findings. If it exits 127, continue this interactive step without state tracking. Never edit `state.json` manually.
+
 ## Task
 Always generate `queries.md` with the `qrspi-x:query` agent, so question generation happens in isolation from the codebase and from anything already explored in this conversation (research findings, a prior feature's work, earlier tool calls, etc.). Never write or append questions to `queries.md` yourself.
 
 1. Check `./qrspi/<feature>/request.md`.
    - If it exists, read it — this is the feature intent to pass to the agent.
-   - If it doesn't exist (the `qrspi-x:init` step was skipped), capture the feature request from the current conversation/command and write `./qrspi/<feature>/request.md` with it yourself, plus an initial `state.json` (see `qrspi-x:workflow`'s schema), before continuing. If the human separately supplied background context, preserve it in optional `./qrspi/<feature>/background.md`; do not pass that context to the isolated Query agent.
+   - If it doesn't exist, route back through `qrspi-x:init` to capture the request before continuing. Preserve any optional human context in `background.md` through Init.
 2. Determine the mode before moving any artifact:
    - **Initial** — no `queries.md` exists.
    - **Refinement** — this pass follows Research whose `research.md` has a non-empty `## New Questions` section.
    - **Regeneration** — `queries.md` exists and Query is being rerun after clarification, a backward jump, or an explicit request to revise questions.
-3. If `queries.md` exists, retain its complete contents and move it to `queries.md.bak` (or the next unused numbered backup). The agent can write a fresh file but cannot overwrite the old one.
+3. If `queries.md` exists, retain its complete contents and move it to `./qrspi/<feature>/backups/queries-<n>.md`, where `n` is one greater than the highest `n` already present for the `queries` stem, starting at 1. Never rename, rotate, or overwrite an existing backup — writing one is always a pure addition. Create `backups/` only when there is something to put in it. The agent can write a fresh file but cannot overwrite the old one.
 4. Before spawning, prefer the declared agent when the runtime supports named agents:
    - If `qrspi-x:query` is registered, spawn it directly so the runtime can apply its declared settings.
    - Otherwise, read `../../agents/query.md`, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions.
@@ -47,6 +53,6 @@ The agent has no tools beyond `Write` — it cannot read files, grep, or run com
 2. If there are Questions for the User, append them to `request.md` under `## Open Questions` (create the section if needed; preserve the original request), then ask them. Move each answered question to `## Clarifications` with its answer. This revises intent, not `queries.md`.
 3. If `## Clarifications` changed in step 2, rerun in Regeneration mode so `queries.md` reflects the clarified intent while preserving still-relevant questions.
 4. Once a pass comes back with no Questions for the User, stop and wait for human review of `./qrspi/<feature>/queries.md`. Do not treat unanswered Open Questions as resolved; Spec will block on them.
-5. If `state.json` exists, update it idempotently: set `currentPhase: "discovery"` and `currentStep: "query"`, ensure `"query"` appears only once in `completedSteps`, and append one history entry for this completed pass including the mode and, when applicable, the clarification or backward-jump reason.
+5. If the helper is available, run `qrspi-x record query --feature <feature> --project <path> --mode <initial|refinement|regeneration> --reason "<why>"` (omit `--reason` when none is needed). Surface returned findings with the human.
 
 Do not proceed to research or any other step automatically.

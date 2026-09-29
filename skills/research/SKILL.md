@@ -3,6 +3,7 @@ name: research
 description: 'Use when answering QRSPI research questions with facts from the codebase.'
 when_to_use: 'Use for the Research step, including repeat runs in a Query ↔ Research cycle. Use `qrspi-x:query` when research reveals a question the code cannot answer.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Research
@@ -10,7 +11,14 @@ disable-model-invocation: false
 ## Core Philosophy
 - Gather facts, not opinions — only research and document findings
 
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly.
+
+## The helper
+Helper installation, state tracking, recovery, and artifact-only fallback are defined by `qrspi-x:workflow`. When the helper is available, run `qrspi-x record research --feature <feature> --project <path>` and surface its findings. If it exits 127, continue this interactive step without state tracking. Never edit `state.json` manually.
+
 ## Task
+If `research.md` exists, retain its complete contents and move it to `./qrspi/<feature>/backups/research-<n>.md`, where `n` is one greater than the highest `n` already present for the `research` stem, starting at 1. Never rename, rotate, or overwrite an existing backup — writing one is always a pure addition. Create `backups/` only when there is something to put in it. Do this before spawning, so the agent can write a fresh file but cannot overwrite the old one.
+
 Before spawning, prefer the declared agent when the runtime supports named agents:
 
 - If `qrspi-x:researcher` is registered, spawn it directly so the runtime can apply its declared settings.
@@ -32,6 +40,6 @@ Using a subagent keeps codebase reads out of the main conversation.
 1. Review the research.md summary the agent reports
 2. Stop and wait for human review of `./qrspi/<feature>/research.md`
 3. If New Questions were surfaced, offer to cycle back to Query phase (`qrspi-x:query` runs in refinement mode)
-4. If `state.json` exists, update it idempotently: set `currentPhase: "discovery"` and `currentStep: "research"`, ensure `"research"` appears only once in `completedSteps`, increment `discoveryIterations` once for this completed Research run, and append one history entry including the resulting iteration number.
+4. If the helper is available, run `qrspi-x record research --feature <feature> --project <path>`. Surface returned findings with the human.
 
 Do not proceed to spec automatically.
