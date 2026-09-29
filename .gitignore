@@ -1,3 +1,11 @@
 qrspi
 tools/node_modules/
 tools/dist/
+tools/release/
+
+.env
+
+.DS_Store
+*.swp
+*.swo
+*.log

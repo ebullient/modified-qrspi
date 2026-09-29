@@ -1,8 +1,10 @@
-// Bundles the state helper into the workflow skill:
-// skills/workflow/scripts/qrspi-state.mjs (committed).
+// Bundles the state helper into the publishable build output:
+// tools/dist/qrspi-x.mjs (generated output).
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const pkg = JSON.parse(
@@ -10,7 +12,7 @@ const pkg = JSON.parse(
 );
 
 function sourceHash() {
-    const source = new URL("./src/", import.meta.url).pathname;
+    const source = fileURLToPath(new URL("./src/", import.meta.url));
     const files = [];
     const visit = (dir) => {
         for (const entry of readdirSync(dir, { withFileTypes: true }).sort(
@@ -30,20 +32,39 @@ function sourceHash() {
     return hash.digest("hex");
 }
 
+function localVersion() {
+    const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+        cwd: new URL(".", import.meta.url),
+        encoding: "utf8",
+    }).trim();
+    const dirty = execFileSync(
+        "git",
+        ["status", "--porcelain", "--untracked-files=no"],
+        { cwd: new URL(".", import.meta.url), encoding: "utf8" },
+    ).trim();
+    return `${pkg.version}+g${sha}${dirty === "" ? "" : ".dirty"}`;
+}
+
+const buildVersion =
+    process.env.CI === "true"
+        ? (process.env.QRSPI_BUILD_VERSION ?? pkg.version)
+        : localVersion();
+const buildHash = sourceHash();
+
 await build({
-    entryPoints: [new URL("./src/state/cli.ts", import.meta.url).pathname],
-    outfile: new URL(
-        "../skills/workflow/scripts/qrspi-state.mjs",
-        import.meta.url,
-    ).pathname,
+    entryPoints: [
+        fileURLToPath(new URL("./src/state/bin.ts", import.meta.url)),
+    ],
+    outfile: fileURLToPath(new URL("./dist/qrspi-x.mjs", import.meta.url)),
     bundle: true,
     platform: "node",
     format: "esm",
-    target: "node24",
+    target: "node22",
     define: {
-        __QRSPI_VERSION__: JSON.stringify(pkg.version),
-        __QRSPI_BUILD_HASH__: JSON.stringify(sourceHash()),
+        __QRSPI_VERSION__: JSON.stringify(buildVersion),
+        __QRSPI_BUILD_HASH__: JSON.stringify(buildHash),
     },
+    banner: { js: `// QRSPI_BUILD_HASH: ${buildHash}` },
     legalComments: "none",
     logLevel: "warning",
 });
