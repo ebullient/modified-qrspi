@@ -4,6 +4,38 @@ A modified version of Dexter Horthy's QRSPI method for spec-driven, human-gated 
 
 This README is for the human running the workflow. The `skills/*/SKILL.md` and `agents/*.md` files are instructions for the agents. This file explains how and why to use them, and what makes the human-approval steps actually work.
 
+## Prerequisites and the helper
+
+Use Node 22 or newer to run the workflow. The `qrspi-x` CLI is recommended for interactive work and required for `autoloop`. Interactive steps can continue in artifact-only mode when it is unavailable, but resume history and automatic recovery will be unavailable. Skills call it rather than editing `state.json` directly. Install it globally:
+
+```bash
+npm i -g @ebullient/qrspi-x
+```
+
+For local development against a source checkout, build and link it instead:
+
+```bash
+cd tools
+npm ci
+npm run build
+npm link
+```
+
+Releases are produced explicitly from the repository's manual release workflow and published to npm.
+
+If you need to recover manually, run `qrspi-x report --feature <feature> --project <path>` from anywhere — it shows the position. The helper does not change the workflow's human gates; it keeps state, recovery, staleness checks, review labels, and phase diff scope out of the conversation.
+
+There are two interactive modes. With the helper, the workflow uses durable position, recovery, staleness findings, review labels, and phase diff scope. Without it, the workflow remains human-gated and uses the artifacts and plan markers directly, but has no automatic recovery or durable history. `autoloop` always requires the helper.
+
+To set a deliberate position, record that step with the options it requires. Several steps need more than `--reason`: Query needs `--mode`, Implement needs `--phase`, Review needs `--label`, and Decision uses `--text` in place of `--reason`. The helper describes each form itself — `--help record` lists the steps, and `--help record <step>` gives that step's options and an example:
+
+```bash
+qrspi-x --help record implement
+qrspi-x record implement --feature <feature> --project <path> --phase 3 --reason "resuming after a manual fix"
+```
+
+Do not hand-edit state unless the helper reports an ambiguity that requires human repair.
+
 ## Package layout for agent roles
 
 Codex discovers the workflow skills by finding `SKILL.md` files under the package's `skills/` directory. It does not automatically register the Markdown files under `agents/` as named subagents. Each caller skill should prefer a registered named agent when the runtime provides one; otherwise, it loads the appropriate role definition and passes its contents to a generic subagent.
@@ -19,14 +51,22 @@ Keep the role definitions bundled in an `agents/` directory that is a peer of `s
         └── SKILL.md
 ```
 
-Caller skills resolve role files package-relatively (for example, `../../agents/query.md` from `skills/query/SKILL.md`). Keep the agent frontmatter for runtimes that support it. A generic fallback is behaviorally equivalent, but its tool permissions are runtime-dependent.
+Caller skills resolve role files package-relatively (for example, `../../agents/query.md` from `skills/query/SKILL.md`). Keep the agent frontmatter for runtimes that support it.
+
+A generic fallback is **not** behaviorally equivalent. Claude Code enforces each agent's `tools:` frontmatter allowlist; a generic subagent does not, so a role meant to hold only `Write` may in practice hold broader tools. A caller using the fallback must enforce by construction what the frontmatter would otherwise guarantee:
+
+- **Fresh context.** Spawn with no inherited conversation turns. A normal generic spawn may inherit the caller's context, which would let Query see the feature discussion it is supposed to be blind to.
+- **Explicit inputs only.** Pass the role definition's full text plus only the inputs that role lists — nothing carried over implicitly.
+- **Narrowest tools the runtime can express.** Restrict to the frontmatter's `tools:` set where the runtime supports it.
+
+Where a runtime cannot restrict tools, the role's isolation is advisory: the separation still holds by construction of the prompt, but it is not enforced, and the guarantees described under "Why this exists" are weaker there. Prefer a registered named agent whenever the runtime provides one.
 
 ## Why this exists
 
 Horthy's retrospective on Research-Plan-Implement (["Everything We Got Wrong About Research-Plan-Implement"](https://www.youtube.com/watch?v=YwZR6tc7qYg)) found four recurring problems:
 
-- One giant planning prompt overloads the model.
 - Research done with knowledge of the intended feature turns into opinions instead of facts.
+- One giant planning prompt overloads the model.
 - 1,000-line plans take as long to read as the code they produce.
 - Plans that go layer by layer (all DB, then all services, then all API) hide integration bugs until the end.
 
@@ -52,12 +92,14 @@ QRSPI-X addresses each one:
 | Shape *(optional)* | Compare viable implementation approaches using the request and research context | isolated subagent, broad read tools |
 | Spec | Define what changes and what doesn't | main conversation |
 | Plan | Break the spec into small, ordered steps; **you approve the phase boundaries before the files are written** | main conversation |
-| Implement | Do one step at a time, commit after each, pause for approval | main conversation |
-| Review | Adversarial check against the spec and plan; PASS / PASS WITH CONDITIONS / FAIL. Optionally also spawns an explainer for a narrative walkthrough of the change | isolated subagent(s), full read tools |
+| Implement | Do one step at a time, commit per phase or per step, pause for approval | main conversation |
+| Review | Adversarial check against the spec, scoped by the plan; PASS / PASS WITH CONDITIONS / FAIL. Optionally also spawns an explainer for a narrative walkthrough of the change | isolated subagent(s), full read tools |
 
 Query and Research can loop — research turns up a new question, you go back to Query, then Research again — for as long as needed. Shape is optional: use it when multiple implementation approaches remain, and skip it when the direction is obvious. Shape can also send unresolved evidence gaps back to Query/Research. Everything after Spec runs in order, but you can always go back a step: "back to research," "revise shape," "revise spec," and "revise plan" are all valid at an approval point.
 
-State is saved in `./qrspi/<feature>/state.json`, so you can pause a workflow and pick it up later in a fresh conversation without re-explaining where it left off. An optional `background.md` may preserve human-supplied context and prior-art comparisons; it is not authoritative intent and is not an automatic input to Query or Research. When Shape runs, `approach.md` records the alternatives, tradeoffs, and human-selected direction before Spec.
+Per-phase plan files are written to `./qrspi/<feature>/plans/`; the `plan.md` overview stays in the workspace root alongside the other artifacts. When Query, Research, Shape, or Spec reruns, it moves the artifact it is about to replace into `./qrspi/<feature>/backups/` as `<stem>-<n>.md`, numbered from 1 and counting up, so a rerun never loses the previous version. In helper-assisted mode, state is saved in `./qrspi/<feature>/state.json`, so you can pause a workflow and pick it up later in a fresh conversation without re-explaining where it left off. Interactive-only mode uses the artifacts and markers directly and has no durable state. An optional `background.md` may preserve human-supplied context and prior-art comparisons; it is not authoritative intent and is not an automatic input to Query or Research. When Shape runs, `approach.md` records the alternatives, tradeoffs, and human-selected direction before Spec.
+
+**Add `qrspi/` to your `.gitignore`.** Workflow artifacts are disposable scaffolding and are never committed — the code is the source of truth. If they are visible to git they show up as uncommitted work, and the helper reports a `dirty-tree` finding on every command. Init checks this and offers to add the entry.
 
 ## How to actually run this well
 
@@ -78,7 +120,7 @@ The tooling doesn't enforce any of this. It's just what makes the process work i
 **You don't need to read the plan closely to review it well.**
 
 - The detailed phase files are often harder to absorb than the code they produce. "I read the plan" can be false confidence.
-- Instead: skim `plan-phase-N.md`, review the actual diff at each phase boundary (the adversarial reviewer catches what you miss), and do one full pass at the end for how the phases fit together.
+- Instead: skim `plans/plan-phase-N.md`, review the actual diff at each phase boundary (the adversarial reviewer catches what you miss), and do one full pass at the end for how the phases fit together.
 - Spend your attention where it pays off, not where the process says you should.
 
 ## Autoloop: running execution unattended
@@ -97,18 +139,18 @@ Four things make it different from `qrspi-x:implement`:
 
 - **Implementation runs in a subagent, one per phase.** The orchestrator only spawns agents and tracks state — it never reads a diff or a source file. It has to survive to the end of the run to make phase-boundary decisions, so its context stays empty on purpose.
 - **One repair attempt per phase, then it stops.** Not a convergence heuristic, just a cap. A phase that fails review twice is something you should look at, and grinding on it unattended costs more than stopping.
-- **It commits once per step** — the loop's undo stack as much as your history. When it hands back a half-repaired phase, per-step commits are how you find where it went wrong. Squash after you've looked, not before.
+- **You pick the commit granularity at entry** — once per phase (the default) or once per step. Per-phase keeps the history readable so you don't drown in commits; per-step is worth asking for when you expect trouble, because those commits are the loop's undo stack as much as your history: when it hands back a half-repaired phase, they are how you find where it went wrong. Repairs are always their own commit. Squash after you've looked, not before.
 - **It stops before the final review.** Autoloop never runs it and never opens a PR.
 
 **What you give up.** Interim reviews run on the same model that just wrote the code — every agent is `model: inherit` so the skill stays portable, and there's no human mid-loop to switch harnesses. So treat interim reviews as a fast filter, not an independent check. The independent check is the final review, which is yours to run, on a different model, exactly as described above. A run of green interim reviews is not a substitute.
 
-It resumes. Every cycle writes its position to `state.json` before acting, so a session that dies mid-phase picks up from the first uncommitted step rather than redoing the phase.
+It resumes. Every cycle records its position through the helper before acting, so a session that dies mid-phase can use the phase markers and loop action rather than redoing work.
 
 Non-blocking findings (`PASS WITH CONDITIONS`) don't stop the loop — they accumulate and get reported together at the end for you to triage.
 
-## Cleanup
+## Completion
 
-Once the final review passes, the workflow offers to clean up (and asks before removing anything). It keeps `request.md`, `background.md` when present, `approach.md` when Shape ran, `spec.md`, `reviews/`, and `state.json`, and moves only the enumerated generated artifacts (`queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, query backups, and `explain/`) to recoverable trash. Product/source files must be tracked or staged and included in the final review before cleanup. Use your own judgement for long-term utility vs. noise.
+Once the final review passes, helper-assisted mode offers to mark the feature done with `qrspi-x record done`. That's advisory bookkeeping only — `report` then shows `completed: true`, and any later `record` call clears it again, since resuming work is itself evidence the feature isn't finished. Interactive-only mode reports completion without state tracking. The workflow never cleans up `./qrspi/<feature>/` itself; disposing of any artifact there, done or not, is your call.
 
 ## See also
 

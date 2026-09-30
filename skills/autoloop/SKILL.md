@@ -3,6 +3,7 @@ name: autoloop
 description: 'Use when a trusted QRSPI spec and plan should run unattended for one phase or all remaining phases.'
 when_to_use: 'Use when a `./qrspi/<feature>/` workspace has an approved spec and plan and you want unattended execution. For human-gated execution, use `qrspi-x:workflow` or `qrspi-x:implement`.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Autoloop
@@ -11,138 +12,117 @@ disable-model-invocation: false
 - Spawn and track; never implement or review in this conversation
 - One repair attempt per phase, then a human
 
+This skill is part of the QRSPI workflow and is normally invoked by `qrspi-x:workflow`. It may also be invoked directly. Unlike the interactive skills, it requires the helper and cannot fall back to artifact-only mode.
+
 ## What this is
 
 Autoloop is the unattended sibling of `qrspi-x:workflow`. The human approves the scope and readiness at entry, then owns the final review; autoloop implements each phase, reviews it, repairs once after a failure, and advances or stops.
 
 This is a coarser gate, not a removed one. The human approves the scope and reviews the result; what changes is how much work accumulates in between. State that distinction at entry.
 
-### What you give up
+### What the human gives up
 
 Interim reviews use the same inherited model that wrote the code, so they are a **fast filter, not an independent check**. Autoloop deliberately stops before final review so the human can run that review separately, ideally on a different model. Interim PASSes do not replace it.
 
-## Preconditions
+## The helper
 
-Refuse to start, naming the failed check, unless all hold:
+All loop state goes through the helper. Do not edit `loop-state.json` directly.
 
-1. `./qrspi/<feature>/state.json` exists.
-2. `spec.md` exists and `completedSteps` contains `spec`.
-3. `plan.md` exists, `completedSteps` contains `plan`, and every phase file in scope exists.
-4. If `approach.md` exists, `state.json.approachDecision` is non-null.
-5. `git status --short --untracked-files=all` shows no unexpected changes outside `./qrspi/<feature>/`. Untracked *source* files must be tracked or staged first — an unattended run must not sweep unrelated work into its commits.
-6. `blockers` in `state.json` is empty. A recorded blocker means a human already stopped here; do not loop past it.
+The exit code carries the verdict — `0` clean, `1` hard block, `3` succeeded with a finding worth reading, `127` not found. Every command can return findings, not just `start`: check them on every call, including `status`, `log`, and `loop`. Most are fine to proceed past once read; a few mean a field in the same result (like `start review --loop`'s `diff`) was computed from something wrong or stale, and using it without acting on the finding first would hand the spawned agent bad input.
 
-If `state.json` records a stale downstream artifact (a backward jump changed `request.md`, `queries.md`, `research.md`, or `approach.md` after `spec.md` or the plan was written), stop and say so. Autoloop's whole premise is a trusted plan.
+- `status`/`start` print their real payload on success
+- `log` and `loop`'s lifecycle actions (other than `--start`) print `{}` on success.
+
+If `qrspi-x` is not found (exit 127), tell the human to run `npm i -g @ebullient/qrspi-x`. Autoloop cannot run unattended without it — this is a hard stop, not a degrade-and-continue case.
 
 ## Entry gate
 
-Before spawning, confirm with the human:
+Run `status`. If `loop` is present and `next.action` is not `done`, a loop already exists: go to **Resuming** instead.
 
-- **Scope** — a single phase (`phase N`) or all remaining phases. Default to a single phase if unstated; all-phases is the larger commitment and should be chosen deliberately.
-- **What it will do unattended** — commit per step, review each phase, and repair once on failure.
+Agree the run with the human:
+
+- **Scope** — a single phase or all remaining phases. Default to a single phase if unstated; all-phases is the larger commitment and should be chosen deliberately. The helper takes this as a selector: `all`, one phase id (`3`), a range (`2..4`), or a comma list (`1,3`).
+- **What it will do unattended** — implement and commit each phase (one commit per step — not a choice; the strongest resume evidence for a run with no human watching), review each phase, and repair once on failure.
 - **What it will not do** — run the final review.
 
-Wait for a clear yes. This is the only approval you will get.
+Then run `loop start <selector> --feature <feature> --project <path>`. It runs the helper's entry checks and resolves the scope, adding any incomplete phases the selection depends on. If it refuses, it wrote nothing: each finding's message says what is wrong and usually how to fix it, so work through them with the human and run it again.
+
+Once it succeeds, nothing has been spawned yet. Show the human the resolved `phaseIds` and wait for a clear yes. This is the only approval you will get. If the human rejects the scope, run `loop abandon "<reason>" --feature <feature> --project <path>` and start over with a different selector.
 
 ## Loop state
 
-Autoloop adds one `loop` block to `state.json`, alongside the existing fields. Everything else — `planPhase`, `phaseBaseSha`, `completedPlanSteps`, `blockers`, `decisions`, `history` — keeps its existing meaning and is maintained as usual.
+The helper owns `loop-state.json` for as long as a loop is running; `status` reports it under the top-level `loop` key (`scope`, `phaseIds`, `cycle`, `phaseId`, `checkpoint`, `conditions`, `stoppedReason`) — absent entirely once no loop is running. `loop.checkpoint` is only the **most recent** checkpoint and `loop.conditions` only the **currently open** ones, not the full run history; that full history is durably recorded in `history.jsonl` as each `log review` call happens, and survives after `loop-state.json` is deleted when the loop ends. Read it back with `history read --kind review` — see **Handing back**.
 
-```json
-"loop": {
-  "scope": "phase-3",
-  "cycle": "review",
-  "phase": 3,
-  "repairUsed": false,
-  "conditions": [
-    {"phase": 2, "label": "phase-2", "note": "MEDIUM: missing null check in parser"}
-  ],
-  "stoppedReason": null
-}
-```
-
-- `scope` — `"phase-<N>"` or `"all"`, as approved at the entry gate
-- `phase` — the phase currently being worked
-- `cycle` — where inside the phase this run is: `implement`, `review`, `repair`, `re-review`, or `done`
-- `repairUsed` — whether this phase has already spent its one repair attempt; reset to `false` when advancing to a new phase
-- `conditions` — accumulated non-blocking findings from PASS WITH CONDITIONS verdicts, carried to the end for the human
-- `stoppedReason` — why the loop stopped, or `null` if it is running or finished cleanly
-
-Write the `loop` block **before** each spawn, not after. A session that dies mid-spawn must leave behind a record of what it was doing, not what it had last finished.
+Each spawn is bracketed: `start <task> --loop` **before** spawning, `log <task>` after the agent returns. `start ... --loop` writes the pre-spawn intent to `loop-state.json` before anything runs, so a session that dies mid-spawn leaves that behind rather than what it last finished — a retried `start ... --loop` reads it back instead of starting over. `log <task>` reads the agent's output from disk — phase markers, commits, the review artifact — and records the outcome; it does not trust the agent's report.
 
 ## The loop
 
 Before each spawn, prefer the declared agent when the runtime supports named agents:
 
 - If `qrspi-x:implementer` or `qrspi-x:reviewer` is registered, spawn it directly so the runtime can apply its declared settings.
-- Otherwise, read the matching bundled role definition, resolved relative to this `SKILL.md`, and spawn a generic subagent with its full contents as the role instructions:
+- Otherwise, read the matching bundled role definition, resolved relative to this `SKILL.md`, and spawn a general-purpose subagent with its full contents as the role instructions:
   - Implementer: `../../agents/implementer.md`
   - Reviewer: `../../agents/reviewer.md`
 
 Apply the same rule to implementation, review, repair, and re-review spawns.
 
-For each phase in scope, in order:
+Drive the loop from the helper. Run `status` and act on `next.action`, then run `status` again, until the action is `done`, `stop`, or `acknowledge-required`.
 
-### 1. Implement
+If `start implement --loop`/`start review --loop` reports the phase's base as stale or missing (e.g. a human fixed a FAIL by hand mid-run), determine the correct base — current HEAD is a reasonable default — and retry the same call with `--base <commit-ish>`. Ask the human if you aren't sure.
 
-Set `currentPhase` to `execution`, `currentStep` to `implement`, and `loop.cycle` to `implement`. Set `phaseBaseSha` to `git rev-parse HEAD` for a fresh phase; leave it unchanged when resuming. Set `planPhase` and `loop.phase` to the active phase — resume dispatches on `loop.phase`, so a phase that is never written cannot be resumed.
+### `implement`
 
-Spawn the implementer:
+Run `start implement --phase <phaseId> --loop --feature <feature> --project <path>`. The result carries `phaseId`.
 
 ```
 Spawn qrspi-x:implementer agent for feature: <feature-name>
 Mode: phase
-Phase: <N>
+Phase: <phaseId>
 ```
 
-If it reports `STOPPED`, record `loop.stoppedReason`, preserve its blocker, and go to **Handing back**. Do not retry it.
+When it returns:
+- If completed, run `log implement --phase <phaseId> --feature <feature> --project <path>`. 
+- If STOPPED, run `loop stop "<its Stopped because paragraph>" --feature <feature> --project <path>` (see **`stop`, `acknowledge-required`, or `done`**, below) — one call records the stop in both `loop-state.json` and `history.jsonl`, so the reason stays durable even after the loop ends. Do not retry a stopped implementer.
 
-### 2. Review
+### `review` or `re-review`
 
-Set `currentStep` and `loop.cycle` to `review`. Spawn the reviewer as `qrspi-x:reviewer`, using the phase diff:
+Run `start review --phase <phaseId> --loop --feature <feature> --project <path>`. The result carries the checkpoint `label` and the phase `diff` command. Use them exactly; never compose a label — the reviewer stops rather than overwrite a finished review, which would strand the loop.
+
+If `./qrspi/<feature>/reviews/<label>.md` does not exist, create it with your file-writing tool containing exactly the line `## Verdict: PENDING`. If it exists, leave it alone. The stub marks the review as launched; the reviewer overwrites it, but refuses any other existing file.
 
 ```
 Spawn qrspi-x:reviewer agent for feature: <feature-name>
-Diff: git diff <phaseBaseSha>
-Phase: <N>
-Label: phase-<N>
+Diff: <diff>
+Phase: <phaseId>
+Label: <label>
 ```
 
 Do not spawn the explainer; it is an opt-in aid for a human who is present.
 
-Append the review's label, verdict, and artifact path to `history`.
+When it returns, run `log review --label <label> --feature <feature> --project <path>`: the helper reads the verdict from the artifact and that becomes the next `next.action` on your following `status` call. Conditions never trigger a repair; they are reported at the end.
 
-### 3. Act on the verdict
+### `repair`
 
-- **PASS** — advance.
-- **PASS WITH CONDITIONS** — advance, and append each non-blocking finding to `loop.conditions` with its phase and label. Do not spend the repair on conditions; they are reported to the human at the end.
-- **FAIL, repair not yet used** — go to Step 4.
-- **FAIL, repair already used** — record `loop.stoppedReason` and go to **Handing back**.
-
-### 4. Repair (once per phase)
-
-Set `currentStep` to `implement`, `loop.repairUsed` to `true`, and `loop.cycle` to `repair` **before** spawning; a crash must not silently buy a second attempt.
+Run `start repair --phase <phaseId> --loop --feature <feature> --project <path>`. This consumes the phase's one repair attempt before the agent runs, so a crash cannot buy a second one. The result's `review` is the failed review's path relative to `./qrspi/<feature>/`.
 
 ```
 Spawn qrspi-x:implementer agent for feature: <feature-name>
 Mode: repair
-Phase: <N>
-Review: ./qrspi/<feature>/reviews/phase-<N>.md
+Phase: <phaseId>
+Review: ./qrspi/<feature>/<review>
 ```
 
-If it reports `STOPPED`, stop the loop.
+When it returns:
+- If completed, run `log implement --phase <phaseId> --feature <feature> --project <path>` (or `log repair` — same call, either name accepted).
+- If STOPPED, run `loop stop "<reason>" --feature <feature> --project <path>`, as above.
 
-### 5. Re-review
+### `advance`
 
-Set `currentStep` to `review` and `loop.cycle` to `re-review`. Spawn the reviewer again on the same phase diff, with a fresh label — `phase-<N>-r2`. Never reuse a label; the reviewer stops rather than overwriting an existing artifact, and that stop would strand the loop.
+Mark the finished phase `[x]` in `plan.md`, then run `loop advance --feature <feature> --project <path>`. The helper moves to the next phase in scope, or marks the loop `done` when the scope is complete.
 
-PASS or PASS WITH CONDITIONS advances; FAIL stops.
+### `stop`, `acknowledge-required`, or `done`
 
-### 6. Advance
-
-Mark the phase `[x]` in `plan.md`. Unless this was the last phase or scope was a single phase, increment `planPhase`, clear `phaseBaseSha`, reset `loop.repairUsed` to `false`, and continue.
-
-When every phase in scope is done, set `loop.cycle` to `done` and go to **Handing back**.
+Go to **Handing back**. If the helper returns an action it has not listed here, stop and hand back rather than guess.
 
 ## Context discipline
 
@@ -150,27 +130,21 @@ Do not read source files, run diffs, or read review artifacts beyond the verdict
 
 ## Resuming
 
-To resume, read `state.json` and dispatch on `loop.cycle`:
+Run `status`. If there is no `loop` key, this is not a resumable autoloop run; start from the entry gate.
 
-- `implement` — respawn the implementer for `loop.phase`. It resumes at the first step not marked `[x]`; completed steps are committed and will not be redone.
-- `review` — the implementer finished but the verdict may not have been recorded. Check whether `reviews/phase-<N>.md` exists: if it does, read its verdict and continue from step 3; if not, spawn the reviewer.
-- `repair` — `repairUsed` is already `true`. Check for uncommitted work, then re-spawn the repair pass; if it was already committed, go to re-review.
-- `re-review` — as `review`, with the `-r2` label.
-- `done` — the run finished; report as in **Handing back**.
+Otherwise dispatch on `next.action` exactly as in **The loop**. `start ... --loop` and `log <task>` are both idempotent, keyed by actual on-disk state — a relaunch after a crash re-reads `inFlight` from `loop-state.json` and the real evidence on disk (phase markers, commits, the review artifact), and produces the same result a continuing session would have: an interrupted implementer's retried `start implement --loop` returns the same phase rather than a fresh one; a review action reuses its recorded label and any PENDING stub.
 
-If `loop.stoppedReason` is set, report it and wait for the human; do not resume past it.
-
-If `state.json` has no `loop` block, this is not a resumable autoloop run. Start from the entry gate.
+If the action is `acknowledge-required`, the loop is stopped (`loop.stoppedReason`) or has open conditions. Report them and wait for the human; do not resume past them. After the human has acted — fixed the problem, written a verdict into a leftover PENDING stub, or relaunched it themselves — run `loop ok "<what they did>" --feature <feature> --project <path>` and continue from its `action` field; the same call also records the resolution durably in `history.jsonl`. If the human wants to end the run instead, run `loop abandon "<reason>" --feature <feature> --project <path>`.
 
 ## Handing back
 
 Stop and report. Do not run the final review, create a PR, or clean up artifacts.
 
 Report:
-1. **Outcome** — completed in full, or stopped (and why, from `loop.stoppedReason`).
-2. **Phases completed**, with each review label and verdict.
-3. **Accumulated conditions** from `loop.conditions` — every non-blocking finding the loop advanced past, grouped by phase. These were never fixed; they are the human's to triage.
+1. **Outcome** — completed in full, or stopped (and why, from `status`'s `loop.stoppedReason`).
+2. **Phases completed**, with each review label and verdict — run `history read --kind review --feature <feature> --project <path>` for the full trail (`loop.checkpoint`, if a loop is still active, only ever holds the single latest one) and report the entries for this run's phases.
+3. **Accumulated conditions** from `status`'s `loop.conditions` (while the loop is still active) or from the `history read --kind review` trail's `conditions` fields (once it has ended) — every non-blocking finding the loop advanced past, grouped by phase. These were never fixed; they are the human's to triage.
 4. **Where it stopped**, if it stopped: the phase, the cycle, the blocker, and the relevant review artifact path.
 5. **What's next** — the final review, run by the human, ideally on a different model than this session used.
 
-Commits are one per step. Offer to squash before the final review, but do not squash unasked — the per-step commits are the record of what the loop did, and they are the only way to see where a phase went wrong.
+Commits are one per step, plus one per repair — no commit-mode choice, this is the only shape an unattended run produces. Offer to squash before the final review, every run, but do not squash unasked — the commits are the record of what the loop did, and they are the only way to see where a phase went wrong until the human chooses to collapse them.

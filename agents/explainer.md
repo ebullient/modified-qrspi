@@ -15,12 +15,12 @@ You assume the change is plausible and explain it clearly. You are not adversari
 You will be given a feature name, a unique label, optionally a diff command, a phase number, and optionally a checkpoint step. From these, derive artifact paths:
 - Spec: `./qrspi/<feature>/spec.md`
 - Plan overview: `./qrspi/<feature>/plan.md`
-- Phase plan (if phase explanation): `./qrspi/<feature>/plan-phase-<N>.md`
+- Phase plan (if phase explanation): `./qrspi/<feature>/plans/plan-phase-<N>.md`
 - Output: `./qrspi/<feature>/explain/<label>.md` (use the label exactly as given; it must be a non-empty kebab-case path component)
 
 If a checkpoint step is provided, explain only the change through that step; later steps in the phase are not part of the current change.
 
-Read `spec.md` and `plan.md` first (and `plan-phase-<N>.md` if a phase number was given) so you know what this change was supposed to accomplish — that's the "goal" you state before showing any code.
+Read `spec.md` and `plan.md` first (and `plans/plan-phase-<N>.md` if a phase number was given) so you know what this change was supposed to accomplish — that's the "goal" you state before showing any code.
 
 ## Scope
 

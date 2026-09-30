@@ -3,13 +3,14 @@ name: workflow
 description: 'Use when starting or resuming a feature through the full QRSPI workflow.'
 when_to_use: 'Use for `/qrspi-x:workflow <feature-name>`. For one step, such as a standalone review, use that step''s skill directly.'
 disable-model-invocation: false
+compatibility: Node 22+
 ---
 
 # QRSPI Workflow Orchestrator
 
 ## Overview
 
-Guides you through the complete QRSPI (Init, Query, Research, optional Shape, Spec, Plan, Implement, Review) workflow for feature development. Handles human gates between steps and supports iterative Query ↔ Research cycles.
+Guides the human through the complete QRSPI (Init, Query, Research, optional Shape, Spec, Plan, Implement, Review) workflow for feature development. Handles human gates between steps and supports iterative Query ↔ Research cycles.
 
 ## Core Philosophy
 
@@ -18,16 +19,20 @@ These apply to all QRSPI skills:
 - **Humans gate every transition** — work stops at the gate and waits; never carry on past it automatically. The granularity varies: `qrspi-x:workflow` gates every step, `qrspi-x:autoloop` gates at the phase or the whole plan. The gate itself does not move — nothing is integrated without a human reviewing it.
 - **Single responsibility** — each step does one job and nothing from the steps around it
 
+## The helper
+
+The helper is recommended for interactive work and required for `autoloop`. Install it globally from the `@ebullient/qrspi-x` npm package. Choose the Helper-assisted or Interactive-only workflow below; never read or edit `loop-state.json` or `history.jsonl` directly.
+
 ## Workflow Phases
 
 ### Optional Pre-Discovery: Explore
-Use `qrspi-x:explore` when you don't yet know what to build — e.g. surveying what a reference framework provides that isn't yet adapted here. Produces `./qrspi/explore/<exploration-name>/explore.md`: observations, gaps, and candidate directions. Not tied to a specific feature, not part of the phase progression below, and has no `state.json` of its own — when a direction is chosen, start the normal flow with Init for that feature. Skip this entirely when the feature is already clear.
+Use `qrspi-x:explore` when the human doesn't yet know what to build — e.g. surveying what a reference framework provides that isn't yet adapted here. Produces `./qrspi/explore/<exploration-name>/explore.md`: observations, gaps, and candidate directions. Not tied to a specific feature, not part of the phase progression below, and has no `qrspi-x` state of its own — when a direction is chosen, start the normal flow with `qrspi-x:init` for that feature. Skip this entirely when the feature is already clear.
 
 ### Discovery Phase (Iterative)
 0. **Init** - Capture feature intent (`qrspi-x:init`)
 1. **Query** - Surface critical questions (`qrspi-x:query`)
 2. **Research** - Gather facts from codebase (`qrspi-x:research`)
-   - **Cycle back to Query** if research surfaces new questions
+   - **Cycle back to `qrspi-x:query`** if research surfaces new questions
    - Repeat until discovery is complete
 
 ### Definition Phase (Shape optional)
@@ -43,7 +48,7 @@ Use `qrspi-x:explore` when you don't yet know what to build — e.g. surveying w
 
 ### Alternate Execution: Autoloop
 
-When the spec and plan are trusted, `qrspi-x:autoloop` can replace Steps 5–6 for one phase or all remaining phases. It runs implement → review unattended, allows one repair after a failed review, and stops on anything unresolved. It gates at a coarser granularity than this workflow — the phase, or the whole plan, rather than every step. The human still approves the scope going in and reviews the result before anything is integrated. Choose it by how much work you want to accumulate behind one gate: a short, straightforward plan is faster to review in one pass than in six. Offer it after Plan; use it only when the human chooses it.
+When the spec and plan are trusted, `qrspi-x:autoloop` can automate the Execution Phase for one plan phase or all remaining phases. It runs implement → review unattended, allows one repair after a failed review, and stops on anything unresolved. It gates at a coarser granularity than this workflow — the phase, or the whole plan, rather than every step. The human still approves the scope going in and reviews the result before anything is integrated. Offer it after Plan, and let the human choose it based on how much work they want to accumulate behind one gate: a short, straightforward plan is faster to review in one pass than in six. Use it only when the human chooses it.
 
 ## Usage
 
@@ -58,78 +63,37 @@ When the spec and plan are trusted, `qrspi-x:autoloop` can replace Steps 5–6 f
 /qrspi-x:workflow <feature-name> --step research
 ```
 
-`--step <name>` (one of `init`, `query`, `research`, `shape`, `spec`, `plan`, `implement`, `review`) runs that step next instead of the one `state.json` suggests. Before running it, check the inputs: `query` needs `request.md`; `research` needs `queries.md`; `shape` needs `request.md`, `queries.md`, and `research.md` (plus optional `background.md`); `spec` needs settled `request.md`, `queries.md`, and `research.md` with no pending questions and, when `approach.md` exists, a non-null `approachDecision`; `plan` needs a current `spec.md` and, when `approach.md` exists, a non-null `approachDecision`; `implement` needs current plan files and the selected phase file; and `review` needs current `spec.md` and `plan.md` (plus `phaseBaseSha` for a phase review). If inputs are missing or stale, name them and ask whether to run the earlier step instead. Set the matching `currentPhase`, record the jump in `history`, and do not mark the jumped-to step complete until it succeeds.
+`--step <name>` runs that step next instead of the reported or artifact-derived position. Check that step's input artifacts first. A backward jump is a normal rerun of the target step — Discovery/Definition steps have no helper state to update, only their own artifacts and backups (`next-file`). Shape is skipped when `approach.md` is absent; when it exists, its `## Decision` section is the gate.
 
-## State Tracking
+## Helper-assisted workflow
 
-The orchestrator maintains state in `./qrspi/<feature>/state.json`. This file is the primary orientation aid for resuming in a fresh conversation context — write it after every transition, not just at the end.
+When `qrspi-x` is available, run `status --feature <feature> --project <path>` to read position and the next action, and call whichever step-owning command (`start`/`log`/`decision`/`history`) the current step calls for. `qrspi-x` describes its own commands, flags, and output shape — `--help`, `--help <command>`, `--help <command> <action>` — so this skill does not restate them; treat `--help` as the source for exact invocations if something is ambiguous.
 
-```json
-{
-  "feature": "feature-name",
-  "currentPhase": "discovery",
-  "currentStep": "research",
-  "discoveryIterations": 2,
-  "completedSteps": ["init", "query", "research"],
-  "approachDecision": null,
-  "planPhase": null,
-  "phaseBaseSha": null,
-  "activePlanStep": null,
-  "completedPlanSteps": [],
-  "blockers": [],
-  "decisions": [],
-  "history": [
-    {"step": "init", "timestamp": "2026-05-26T09:45:00Z"},
-    {"step": "query", "timestamp": "2026-05-26T10:00:00Z"},
-    {"step": "research", "timestamp": "2026-05-26T10:15:00Z"},
-    {"step": "query", "timestamp": "2026-05-26T10:30:00Z"}
-  ]
-}
-```
+If `status` reports a `loop` in progress, hand the run to `qrspi-x:autoloop` to resume — autoloop drives its own loop state end to end; this skill does not need to know how.
 
-Fields:
-- `currentPhase` — `discovery`, `definition`, or `execution`
-- `currentStep` — the workflow step currently active or last completed (`init`, `query`, `research`, `shape`, `spec`, `plan`, `implement`, `review`)
-- `completedSteps` — workflow step names only (never plan step numbers); each name appears at most once, so re-running a step doesn't add it again
-- `approachDecision` — orchestrator-owned selected approach identifier as a string, or `null` until the human selects an approach in `approach.md`; remains `null` when Shape is skipped because the direction is obvious
-- `planPhase` — during implementation, the plan phase number (integer) being worked; selects `plan-phase-<planPhase>.md` (null otherwise)
-- `phaseBaseSha` — the commit HEAD pointed to before the first step of `planPhase` began; used to scope phase checkpoint reviews (null otherwise)
-- `activePlanStep` — the plan step in progress as `"<phase>.<step>"`, e.g. `"2.3"` (null otherwise)
-- `completedPlanSteps` — completed plan steps as `"<phase>.<step>"` strings
-- `blockers` — free-text notes about anything currently blocked; clear when resolved
-- `decisions` — key decisions made during the workflow that aren't obvious from artifacts (e.g. "chose approach B because X", "skipped step 4 because Y"); append, never overwrite
-- `discoveryIterations` — how many Research steps have completed (each Research run ends one Query→Research cycle)
-- `history` — append-only log; add one entry each time a step finishes (and for `--step` jumps), with `step`, `timestamp`, and optional context such as `mode`, `reason`, `iteration`, `label`, `verdict`, and `artifact`
-- `loop` — autoloop-only control block; see `qrspi-x:autoloop`. It is absent from ordinary workflow runs.
+Never read or edit `loop-state.json` or `history.jsonl` by hand.
 
-The autoloop `loop` block has this shape:
+Staleness flows forward: changes to `request.md`, `queries.md`, or `research.md` invalidate `approach.md`, `spec.md`, plan files, and implementation progress; changes to `approach.md` invalidate `spec.md`, plan files, and implementation progress. Existing files do not prove freshness. Run the affected steps forward before using a downstream artifact. A skill may replace its own current artifact in place; Query, Research, Shape, and Spec each back up their previous artifact to `backups/`, and in every case the newest artifact is the authoritative one. Writing a backup does not make anything stale — the rerun that produced it is what drives staleness, and nothing in the workflow reads `backups/`.
 
-```json
-{
-  "scope": "phase-3",
-  "cycle": "review",
-  "phase": 3,
-  "repairUsed": false,
-  "conditions": [],
-  "stoppedReason": null
-}
-```
+A human may leave other files under `./qrspi/<feature>/` beyond the ones this workflow writes — notes, reference material, an optional `background.md`. None of these are automatic input to any step; a skill never reads one on its own initiative. If the human points a step at one explicitly ("read background.md too" / "also see notes.md"), read it for that step, same as any other instruction — this workflow just never assumes it should.
 
-`scope` is `phase-<N>` or `all`; `cycle` is `implement`, `review`, `repair`, `re-review`, or `done`; `phase` is the active phase; `repairUsed` caps repair at one attempt per phase; `conditions` stores non-blocking findings; and `stoppedReason` records why the loop stopped.
+## Interactive-only workflow
 
-Every skill updates `state.json` when it exists, but only `qrspi-x:init` (or `qrspi-x:query`, when Init was skipped) creates it.
+When `qrspi-x` is unavailable, continue with human-gated execution:
 
-State updates are idempotent: `completedSteps` is a set, not an append-only list. Each skill owns its completion fields and appends exactly one history entry for each completed invocation; the orchestrator owns only navigation and `--step` jump entries. Query, Research, Shape, Spec, and Plan set `currentPhase` to their phase when rerun after a backward jump. `implement` is added to `completedSteps` only after every phase is complete, and `review` only after a final review.
-
-Staleness flows forward: changes to `request.md`, `queries.md`, or `research.md` invalidate `approach.md`, `spec.md`, plan files, and implementation progress; changes to `approach.md` invalidate `spec.md`, plan files, and implementation progress. Existing files do not prove freshness. Run the affected steps forward before using a downstream artifact. A skill may replace its own current artifact in place; Query creates backups explicitly, while Research, Shape, and Spec record their reruns in history and leave the newest artifact authoritative. An optional `background.md` is human context only: it is retained when present, but is not an automatic input to Query or Research.
+- Use the artifacts, plan overview, and phase-file markers to determine progress.
+- Keep navigation in the conversation and confirm each transition with the human.
+- Use the direct-review rules for review scope and deterministic labels.
+- There is no recovery, durable history, autoloop, or helper-derived diff scope.
+- No `qrspi-x` state exists in this mode; there is nothing to create or edit by hand.
 
 ## Orchestrator Behavior
 
 ### At Each Step
-1. Load `state.json` (or initialize if new).
+1. In helper-assisted mode, run `status` to read the position; in interactive-only mode, determine the next step from the workflow artifacts (or invoke `qrspi-x:init` if the workspace is new).
 2. Announce and invoke the current step skill.
 3. Wait for human review of its artifact.
-4. Present the next-step options and update navigation state from the human's choice. Do not duplicate the completion or history entry written by the skill.
+4. Present the next-step options. In helper-assisted mode, update navigation through the helper; in interactive-only mode, keep navigation in the conversation. Do not duplicate the completion or history entry written by the skill.
 
 ### After Init Step
 **Prompt:** "Feature intent captured in `./qrspi/<feature>/request.md`. Next steps:
@@ -147,12 +111,12 @@ Staleness flows forward: changes to `request.md`, `queries.md`, or `research.md`
 **Prompt:** "Research complete in `./qrspi/<feature>/research.md`. Next steps:
 1. **Query Again** - Research surfaced new questions (iterations: N) — show only when `## New Questions` is non-empty; runs `qrspi-x:query` in refinement mode
 2. **Shape** - Compare implementation approaches when the direction is not obvious — show only when `## New Questions` is empty.
-3. **Spec** - Proceed directly to define the behavioral delta when the approach is obvious, or after an approved `approach.md`. If choosing Spec directly, the orchestrator records why Shape was skipped in `decisions` and `history`.
+3. **Spec** - Proceed directly to define the behavioral delta when the approach is obvious, or after an approved `approach.md`. If choosing Spec directly, helper-assisted mode notes that Shape was skipped with `history add --text "<why>"` — a fact about what happened, not a design decision (`decision add` is for the standing rationale behind a choice, e.g. "we'll never use Shape for features under N files" — see `qrspi-x:workflow`'s helper-assisted section). Interactive-only mode states the reason to the human.
 4. **Refine Research** - Modify research.md
 5. **Cancel** - Stop workflow"
 
 ### After Shape Step
-**Prompt:** "Approach options are in `./qrspi/<feature>/approach.md`. When the human selects an option, the orchestrator must write its identifier to `state.json.approachDecision` and record the option and rationale under `## Human Decision` before offering Spec. Then choose:
+**Prompt:** "Approach options are in `./qrspi/<feature>/approach.md`. When the human selects an option, replace the `None.` placeholder under `## Decision` with the option and rationale before offering Spec. Then choose:
 1. **Spec** - Define the behavioral delta using the selected approach
 2. **Back to Query/Research** - Resolve an evidence gap exposed by shaping
 3. **Refine Shape** - Recompare the approaches
@@ -189,7 +153,7 @@ Staleness flows forward: changes to `request.md`, `queries.md`, or `research.md`
 ### After All Phases Complete
 **Prompt:** "All phases complete. Next steps:
 1. **Final Review** - Full adversarial review of the branch
-2. **Back to Plan** - Adjust plan and resume
+2. **Back to Plan** - Adjust plan and resume. A gap found this late is often one missing phase, not a rewrite — see `qrspi-x:plan`'s Inserting a Phase.
 3. **Stop** - Pause workflow"
 
 ### After Checkpoint Review
@@ -200,41 +164,56 @@ Staleness flows forward: changes to `request.md`, `queries.md`, or `research.md`
 
 ### After Final Review
 **Prompt based on verdict:**
-- **PASS**: "Review PASSED. Workflow complete. Clean up QRSPI artifacts?"
+- **PASS**: "Review PASSED. Workflow complete. In helper-assisted mode, stop tracking this feature as active? In interactive-only mode, report completion?" On yes, if the helper is available, run `log park` — this marks the feature inactive for browsing, not a claim that it's finished forever, and nothing later refuses to proceed because of it. `./qrspi/<feature>/` is left as-is either way; cleaning it up is the human's call, not the workflow's.
 - **PASS WITH CONDITIONS**: "Review passed with conditions. Address findings then re-review?"
-- **FAIL**: "Review FAILED. Options: 1) Fix and re-implement 2) Revise plan 3) Revise spec"
+- **FAIL**: "Review FAILED. Options: 1) Fix and re-implement 2) Revise plan (often just inserting one phase — see `qrspi-x:plan`'s Inserting a Phase) 3) Revise spec"
 
 ## Key Features
 
 1. **Iterative Discovery** - Query ↔ Research cycles are expected and tracked
 2. **Human Gates** - Every transition requires explicit approval
-3. **Resumable** - Can pause and resume at any step
-4. **State Persistence** - Tracks history and current position
+3. **Resumable in helper-assisted mode** - Can pause and resume at any step
+4. **State Persistence in helper-assisted mode** - Tracks history and current position
 5. **Flexible Navigation** - Can jump back to earlier phases if needed
 6. **Optional Shaping** - Compare implementation approaches only when the direction is not obvious
 7. **Checkpoint Reviews** - Support incremental reviews during implementation
 
-## Initialization
+## Helper-driven workflow
 
-When starting a new workflow:
 1. Check whether `./qrspi/<feature>/` exists
-2. If it does not exist: invoke `qrspi-x:init` to capture the feature request into `request.md` and write the initial `state.json` (`currentPhase: "discovery"`, `currentStep: "init"`, `completedSteps: ["init"]`, `approachDecision: null`, `discoveryIterations: 0`, `planPhase: null`, `phaseBaseSha: null`, `activePlanStep: null`, `completedPlanSteps: []`, `blockers: []`, `decisions: []`, `history: [{"step": "init", "timestamp": "..."}]`)
-3. If it exists but `state.json` is missing: treat it as an incomplete workspace and stop; do not infer workflow state from file existence. Standalone `qrspi-x:query` may create a missing request/state pair only when Init was intentionally skipped.
-4. If it exists and `state.json` is present: this is a resume — go to the resume path below
-5. After Init completes, present the After Init Step prompt and wait for the human's choice
+2. If it does not exist: invoke `qrspi-x:init`; that skill writes `request.md`. There is no helper call for Init — Discovery/Definition steps (Init, Query, Research, Shape, Spec, Plan) have no `qrspi-x` state of their own; the helper's only involvement there is `next-file` for backup naming.
+3. If it exists, ensure that `request.md` captures the feature intent. If `request.md` is missing, route back through `qrspi-x:init` to capture it and stop. If it exists, this is a resume — go to the resume path below.
 
 When resuming:
-1. Read `state.json` — if missing, warn the user and offer to reinitialize or abort
-2. Read the artifacts for the current phase; read `plan.md` only when it exists or when `currentPhase` is `definition`/`execution`
-3. If `currentStep` is `shape` and `completedSteps` contains `shape`, read `approachDecision`: when it is `null` and `approach.md` exists, remain at the human Shape gate and do not spawn Shape again or dispatch Spec; when it is non-null, the gate is cleared and navigation may advance to Spec.
-4. If in implementation: load `plan-phase-<planPhase>.md` and scan for `[~]` (in-progress) and `[ ]` (not started) markers to confirm active step
-5. Summarize current state to the user: current phase (name and number), active step, completed phases, any blockers or decisions on record
-6. Offer to continue from current step or jump to another phase
 
-After every step transition, update `state.json` before presenting options to the user.
+1. Run `status --feature <feature> --project <path>` and surface any findings. `current.step` (a convenience, never required) reports which Discovery/Definition/Implement step the feature is currently at, derived from artifact presence — read the artifacts for that step directly.
+2. If `approach.md` exists and its `## Decision` section is undecided (blank or literally `None.`), remain at the human Shape gate and do not dispatch `qrspi-x:spec` — this is this skill's own read of `approach.md`, not a `status` finding.
+3. During implementation, use `current.phase`/`current.planProgress`; do not infer the next phase or step from the files when `status` provides it.
+4. If `status` reports a `loop` in progress, hand the run to `qrspi-x:autoloop` to resume.
+5. Summarize the position, findings, and next action reported by `status`.
+6. Offer to continue from `next.label`/`next.action` or jump to another phase.
 
-## Cleanup
+After every step transition, the owning skill calls the helper before presenting options to the user.
 
-After a final review PASS, offer cleanup. Enumerate the exact existing paths under `./qrspi/<feature>/` first; never pass a broad glob to a removal command and remove nothing without the human's confirmation:
-- Keep: `request.md`, `background.md` when present, `approach.md` when Shape ran, `spec.md`, `reviews/`, `state.json`
-- Remove only these generated artifacts when they exist (move to recoverable trash, e.g. with `trash`, rather than permanently deleting): `queries.md`, `research.md`, `plan.md`, `plan-phase-*.md`, `queries.md.bak*`, and `explain/`. If recoverable trash is unavailable, stop and ask rather than permanently deleting.
+## Interactive-only workflow
+
+1. Check whether `./qrspi/<feature>/` exists
+2. If it does not exist: invoke `qrspi-x:init`; that skill writes `request.md` and continues without state tracking.
+3. If it exists, ensure that `request.md` captures the feature intent. If `request.md` is missing, route back through `qrspi-x:init` to capture it and stop. If it exists, this is a resume — determine the next step from the artifacts and plan markers.
+
+After Init completes, present the After Init Step prompt and wait for the human's choice.
+
+When resuming:
+
+1. Read the artifacts in workflow order: `request.md`, `queries.md`, `research.md`, optional `approach.md`, `spec.md`, `plan.md`, and the phase files.
+2. If an earlier required artifact is missing, resume at the skill that creates it. If `research.md` has a non-empty `## New Questions`, resume at `qrspi-x:query`.
+3. If `approach.md` exists, inspect its `## Decision` section. If it is undecided, stop at the human Shape gate; do not dispatch `qrspi-x:spec`.
+4. If implementation has begun, read the plan table and phase-file markers. Select the first incomplete phase whose dependencies are complete, then the first incomplete step in that phase. Stop on an ambiguous or `[!]` marker and ask the human.
+5. For a review, inspect the relevant plan and diff scope, then use the direct-review label rules; do not infer helper labels or phase diff commands.
+6. Summarize the artifacts examined, the proposed next step, and any ambiguity. Ask the human to confirm before continuing.
+
+After every step transition, the step's artifact and the human's choice are the progress record.
+
+## Completion
+
+After a final review PASS, helper-assisted mode may offer to stop tracking the feature as active with `log park` (see **Helper-assisted workflow**). Interactive-only mode reports completion without state tracking. The workflow does not clean up `./qrspi/<feature>/` itself, before or after parking — disposing of any artifact there, including the generated ones, is the human's call.

@@ -21,7 +21,7 @@ Read `request.md`, `queries.md`, and `research.md` first. Read `background.md` w
 
 ## Scope
 
-Stay within the current project — the working directory that contains (or is the parent of) the `qrspi` directory. Do not read, search, or write outside it unless the caller explicitly names another reference location. Do not read `spec.md`, `plan.md`, `plan-phase-*.md`, or anything under `reviews/` or `explain/`; those are downstream or review artifacts.
+Stay within the current project — the working directory that contains (or is the parent of) the `qrspi` directory. Do not read, search, or write outside it unless the caller explicitly names another reference location. Do not read `spec.md`, `plan.md`, `plans/plan-phase-*.md`, or anything under `reviews/` or `explain/`; those are downstream or review artifacts.
 
 ## Approach
 
@@ -52,8 +52,8 @@ Write `approach.md` in this format:
 ## Recommendation
 [Recommended option and why]
 
-## Human Decision
-<!-- Leave this for the human or caller to complete. -->
+## Decision
+None.
 
 ## Open Questions
 [Evidence gaps that require Query/Research, or empty]
