@@ -2,7 +2,7 @@
 
 Conventions for editing QRSPI-X itself. This file is for whoever (human or agent) is **modifying** the plugin. It is not shipped guidance for running a QRSPI workflow — that's [README.md](README.md), and the skills and agents are instructions to the agents that execute the workflow.
 
-Everything here is markdown. There is no build, no test suite, and nothing that will catch a mistake for you: a wrong instruction just produces wrong behavior at runtime, in someone else's session. Read the file you're changing in full before changing it.
+Most of this repo is markdown, with the private TypeScript helper under `tools/`. Read the file you're changing in full before changing it.
 
 ## Layout
 
@@ -10,6 +10,7 @@ Everything here is markdown. There is no build, no test suite, and nothing that 
 skills/<name>/SKILL.md    one skill per directory, always named SKILL.md
 agents/<name>.md          one agent per file
 .claude-plugin/           plugin manifest (name, version)
+tools/                    published helper source and build metadata
 ```
 
 Skills are invoked as `qrspi-x:<name>`. Agents are spawned by skills as `qrspi-x:<name>`.
@@ -18,7 +19,7 @@ Skills are invoked as `qrspi-x:<name>`. Agents are spawned by skills as `qrspi-x
 
 The split is deliberate and load-bearing:
 
-- **A skill** runs in the main conversation. It orchestrates: it decides what happens next, talks to the human, updates `state.json`, and spawns agents.
+- **A skill** runs in the main conversation. It orchestrates: it decides what happens next, talks to the human, records state through the helper, and spawns agents.
 - **An agent** runs in an isolated subagent with its own context. It does the heavy reading and writing, then discards its context when it returns.
 
 Work goes in an agent when it would otherwise flood the main conversation with diffs or file contents, or when isolation is the point — Query must not see the codebase, Research must not see Query's reasoning, the reviewer must not see the implementer's.
@@ -53,6 +54,7 @@ name: <matches the directory>
 description: 'QRSPI Step N: <what it does>'
 when_to_use: '<when to invoke, and when NOT to — name the alternative>'
 disable-model-invocation: false
+compatibility: Node 22+   # when the skill calls the helper
 ---
 ```
 
@@ -62,15 +64,15 @@ Each skill opens with a `## Core Philosophy` section of one or two lines — the
 
 ## Artifacts and state
 
-Workflow artifacts live in `./qrspi/<feature>/` in the *user's* project, never in this repo. They are disposable scaffolding; the code is the source of truth.
+Workflow artifacts live in `./qrspi/<feature>/` in the *user's* project, never in this repo. They are disposable scaffolding; the code is the source of truth. Per-phase plan files live in the `plans/` subdirectory; `plan.md` and the other artifacts stay in the workspace root, reviews stay in `reviews/`, and the artifacts Query, Research, Shape, and Spec displace on a rerun go to `backups/` as `<stem>-<n>.md`.
 
 `state.json`'s schema is documented in [skills/workflow/SKILL.md](skills/workflow/SKILL.md) and that is the single source of truth for it. If you add a field, document it there, and say which skill owns it.
 
 Rules that hold across every skill:
 
-- **Updates are idempotent.** `completedSteps` is a set — a rerun doesn't add a second entry. `history` is append-only; each completed invocation appends exactly one entry.
+- **Updates are idempotent.** Helper records are no-ops when they would change nothing; history is append-only for completed transitions.
 - **Each skill owns its own completion fields.** The orchestrator owns navigation and `--step` jumps, and nothing else. Don't write another skill's fields.
-- **Write state before acting, not after.** Especially in `autoloop`: a session that dies mid-spawn must leave behind what it was *doing*, not what it last *finished*. This is what makes resume work.
+- **Record transitions before acting, not after.** Especially in `autoloop`: a session that dies mid-spawn must leave behind what it was *doing*, not what it last *finished*. Use the helper's `loop --begin` commands.
 - **QRSPI artifacts are never committed** to the user's project and never counted as product files in a diff.
 
 ## Labels
@@ -84,7 +86,7 @@ Review and explain artifacts are keyed by label (`phase-2`, `phase-2-r2`, `final
 - [skills/implement/SKILL.md](skills/implement/SKILL.md) — interactive, gated, human present
 - [agents/implementer.md](agents/implementer.md) — unattended, spawned by `autoloop`
 
-The shared part is the step sequence: mark `[~]` → set `activePlanStep` → change → verify → mark `[x]` → update `completedPlanSteps` → commit. **If you change that sequence, change it in both.**
+The shared part is the step sequence: mark `[~]` → change → verify → commit → mark `[x]`. Commit before marking `[x]`, so a completed marker always has a commit behind it. Progress comes from phase markers; state is written by the caller through the helper. **If you change that sequence, change it in both.**
 
 The differences are intentional and should not be "fixed" into agreement:
 
@@ -92,16 +94,24 @@ The differences are intentional and should not be "fixed" into agreement:
 |---|---|---|
 | Approval | pauses per execution mode | never pauses — nobody's there |
 | Execution modes | four (single/partial/phase/full) | one: the phase it's given |
-| Commits | per step, unless human asks per-phase | always per step |
-| Bookkeeping | updated per step | *immediately* per step, never batched |
+| Commits | per step, unless human asks per-phase | the commit mode it's given; repairs always a new commit |
+| Bookkeeping | markers and commits per step | markers and commits per step |
 | Bad plan | stop, explain, propose, await approval | stop, record, report |
 | Repair mode | none | half the contract |
 
 The agent is stricter because it is unattended. Don't import that strictness into the interactive skill, and don't relax it in the agent.
 
-**Diff scope resolution** appears in `reviewer`, `explainer`, and `explorer` with near-identical wording (the `git merge-base` fallback, the untracked-files check, the allowed-artifact list). These drifting apart is a real risk; check the others when you touch one.
+The transition table in `skills/workflow/SKILL.md` and the command implementations under `tools/src/state/` must change together. So must any skill text that names a helper command, option, result field, finding code, or Markdown heading the helper parses — the helper is the contract, and a skill that disagrees with it fails at runtime. **The bare `qrspi-x` invocation form is duplicated across all ten stateful skills and `README.md`; change one and check the others.** Before committing helper or skill changes, run `cd tools && npm run fullbuild`; the generated bundle is ignored. Don't bump versions by hand: the manual release workflow sets the version in `tools/package.json` and `.claude-plugin/plugin.json` and commits the bump.
 
-**The QRSPI artifact inventory** is repeated in the reviewer agent's untracked-file allowlist, the workflow and README cleanup keep/remove lists, and the workflow staleness rules. When adding or renaming an artifact, update every copy together so reviewers, cleanup, and resume logic agree about what is metadata, what is retained, and what becomes stale.
+**Diff scope resolution** appears in `reviewer` and `explainer` with near-identical wording (the `git merge-base` fallback against the default branch, and stopping rather than guessing a scope). These two drifting apart is a real risk; check the other when you touch one. `explorer` has no diff-scope section — it surveys a codebase rather than a change.
+
+**No agent enumerates the artifacts.** The reviewer decides by location: everything under `qrspi/` is scaffolding, never a product file and never blocking, whatever it is named and whichever feature it belongs to. Only an untracked source file *outside* `qrspi/` blocks, because that one silently leaves the diff under review. Nothing inside `qrspi/` is reported at all, recognized or not — humans and agents leave working notes and checklists in the workspace, and naming them would reintroduce recognition-by-filename through the back door. `explainer` likewise states only that QRSPI artifacts are read directly and are not part of the product diff, and `explorer` says nothing about artifacts at all.
+
+This replaced an allowlist of filenames, which twice blocked a layout the rest of the plugin supported — once for `plan-phase-*.md`, once for `queries.md.bak*` — because a list of names cannot anticipate what a skill or agent will legitimately write. So adding an artifact needs no reviewer change; don't go looking for a list to update.
+
+**The QRSPI artifact inventory** — including the `plans/`, `backups/`, and `reviews/` subdirectories, not just the root-level files — is repeated in the workflow staleness rules. `workflow` never cleans up `./qrspi/<feature>/`; disposing of any artifact there, done or not, is the human's call, so there is no cleanup keep/remove list to keep in sync. When adding or renaming an artifact, check the staleness rules so resume logic still agrees about what is metadata, what is retained, and what becomes stale. The reviewer is not one of these copies — it goes by location, not by name.
+
+**The backup rule** is stated four times, once in each skill that owns a rerunnable artifact: `query` (`queries`), `research` (`research`), `shape` (`approach`), and `spec` (`spec`). Each copy is deliberately self-contained — a skill is a prompt loaded on its own, so a cross-reference to another skill is a read the agent may never make. The load-bearing part is identical by design — the stem aside, the numbering, the no-overwrite guarantee, and the "create `backups/` only when there is something to put in it" clause must match word for word. What follows that clause may differ: `query` and `research` add that the agent cannot overwrite the old file, and `research` says to do it before spawning, because those two hand the artifact to a subagent; `shape` and `spec` write it themselves and need no such warning. Change one and change all four, or reruns of different steps will number or overwrite backups differently, which is exactly the inconsistency the old undefined `queries.md.bak` scheme produced.
 
 ## Gate contracts
 
@@ -123,6 +133,5 @@ Second person for agents ("You are a QRSPI..."), imperative for skills. Match th
 - Check whether the change affects one of the duplicated sections above.
 - If behavior visible to a workflow-runner changed, update [README.md](README.md).
 - If `state.json` changed, update the schema in [skills/workflow/SKILL.md](skills/workflow/SKILL.md).
-- Bump `version` in [.claude-plugin/](.claude-plugin/) for a release.
 
 Commit messages in this repo use a gitmoji prefix (`✨`, `🐛`, `📝`, `🔧`, `🔖`) — match what's already in `git log`.
