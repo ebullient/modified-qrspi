@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New version or major, minor, patch
+        required: true
+        default: patch
+        type: string
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: tools
+
+      - name: Validate checkout and resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh auth setup-git
+          test -z "$(git status --porcelain --untracked-files=all)"
+          git fetch origin "$DEFAULT_BRANCH" --tags
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$DEFAULT_BRANCH")"
+          npm version "$INPUT_VERSION" --no-git-tag-version --prefix tools
+          VERSION="$(jq -r '.version' tools/package.json)"
+          if git rev-parse --verify --quiet "refs/tags/v$VERSION"; then
+            echo "tag v$VERSION already exists" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build helper
+        run: npm run build
+        working-directory: tools
+        env:
+          CI: "true"
+          QRSPI_BUILD_VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Smoke test generated helper
+        run: ./tools/dist/qrspi-x.mjs --version
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        working-directory: tools
+
+      - name: Update release metadata
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: sed -i -E "s/(\"version\"[[:space:]]*:[[:space:]]*\")[^\"]+/\1$VERSION/" .claude-plugin/plugin.json
+
+      - name: Package release ZIP
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./.github/scripts/package-release.sh "$VERSION" "tools/release/qrspi-x-$VERSION.zip"
+
+      - name: Attest release ZIP
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
+        with:
+          subject-path: tools/release/qrspi-x-${{ steps.version.outputs.version }}.zip
+
+      - name: Commit and tag release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/plugin.json tools/package.json tools/package-lock.json
+          git diff --cached --quiet && { echo "release metadata did not change" >&2; exit 1; }
+          git commit -m "🔖 release v$VERSION"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "HEAD:$DEFAULT_BRANCH" "v$VERSION"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "v$VERSION" "tools/release/qrspi-x-$VERSION.zip" --title "v$VERSION" --generate-notes
