@@ -23,8 +23,9 @@ Helper installation, state tracking, recovery, and artifact-only fallback are de
 2. **Get a unique label.** 
     - If the helper is available: for a completed-phase review, run `qrspi-x status --feature <feature> --project <path> [--phase <N>]` and take `next.label`; for a mid-phase checkpoint, run `qrspi-x next-file review --phase <N> --step <k> --feature <feature> --project <path>`; for a final review, run `qrspi-x next-file final --feature <feature> --project <path>` — take the label these return as-is, never recompute or adjust it. 
     - Without the helper, use the phase name converted to a kebab-case path component; for an unphased final review use `final`. If that label already exists, append `-r2`, then `-r3`, and so on until unused.
-3. **Ask whether to run the explainer too** — it is opt-in, and both agents must spawn in the same turn, so ask before spawning anything. See **Explainer Agent**.
-4. **Spawn** the reviewer, plus the explainer on a clear yes, in a single turn so neither sees the other's output.
+3. **Offer optional delegated reviews** — compatible review skills such as `/code-review` or `/security-review` may run their own specialist subagents. Ask each selected skill to collate every subagent result into one complete, readable report over the exact same diff, persist it under `./qrspi/<feature>/reviews/supplemental/`, and return its path before the QRSPI reviewer is spawned. See **Running other review tools**.
+4. **Ask whether to run the explainer too** — it is opt-in, and the reviewer and explainer must spawn in the same turn after any delegated reports are ready. See **Explainer Agent**.
+5. **Spawn** the reviewer, plus the explainer on a clear yes, in a single turn so neither sees the other's output.
 
 ```
 If registered: Spawn qrspi-x:reviewer agent for feature: <feature-name>
@@ -33,6 +34,7 @@ Diff: <exact git diff command, or "staged">
 Phase: <N, or omit>
 Checkpoint step: <M for a mid-phase checkpoint, or omit when the whole phase is complete>
 Label: <unique label, e.g. "phase-2", "phase-2-step-1", or "final">
+Supplemental review reports: <paths to collated reports, or "none">
 ```
 
 ```
@@ -81,8 +83,10 @@ Treat the explainer's output as unverified narrative, not a substitute for the d
 
 This review's contribution is narrow — it checks the diff against `spec.md` and writes the verdict artifact the workflow records — and it is not a better bug-finder than a dedicated review tool. So:
 
-- **Run others alongside it.** `/code-review`, `/security-review`, a project reviewer, a linter, a human. Offer when useful; don't argue when asked. Their findings and this verdict are complementary.
-- **Never fold their output into a review artifact yourself.** For it to count toward a verdict, the human either hands it to the reviewer on a re-review with a fresh label, or explicitly accepts the fixes without another agent review (see **Accepting fixes without another agent review**).
+- **Offer compatible reviewers as delegated inputs.** `/code-review`, `/security-review`, a project reviewer, a linter, or a human may be useful. Run selected review skills over the exact same diff and ask each to run its normal subagents, then collate every result — including source attribution and disagreements — into one complete, readable report under `./qrspi/<feature>/reviews/supplemental/` before the QRSPI reviewer starts.
+- **Give the collated reports to the QRSPI reviewer.** Pass their paths in `Supplemental review reports`; do not pass an uncollated pile of specialist replies when the delegated skill can summarize them.
+- **Keep the QRSPI reviewer authoritative.** Delegated reports are advisory leads. The reviewer independently checks the code, then validates each relevant finding against the spec and scope. Accepted findings go into the normal review artifact; duplicates, rejected findings, and out-of-scope observations are recorded in `## Supplemental Reviews` only.
+- **Do not require delegation in unattended loops.** `autoloop` may use a supplemental reviewer only when it has a stable non-interactive contract and report output; otherwise it keeps the existing QRSPI-only review.
 
 ## After the Reviewer Returns
 

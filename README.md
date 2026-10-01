@@ -93,7 +93,7 @@ QRSPI-X addresses each one:
 | Spec | Define what changes and what doesn't | main conversation |
 | Plan | Break the spec into small, ordered steps; **you approve the phase boundaries before the files are written** | main conversation |
 | Implement | Do one step at a time, commit per phase or per step, pause for approval | main conversation |
-| Review | Adversarial check against the spec, scoped by the plan; PASS / PASS WITH CONDITIONS / FAIL. Optionally also spawns an explainer for a narrative walkthrough of the change | isolated subagent(s), full read tools |
+| Review | Adversarial check against the spec, scoped by the plan; PASS / PASS WITH CONDITIONS / FAIL. Can optionally consume collated reports from other review skills, and can also spawn an explainer for a narrative walkthrough | isolated subagent(s), full read tools |
 
 Query and Research can loop — research turns up a new question, you go back to Query, then Research again — for as long as needed. Shape is optional: use it when multiple implementation approaches remain, and skip it when the direction is obvious. Shape can also send unresolved evidence gaps back to Query/Research. Everything after Spec runs in order, but you can always go back a step: "back to research," "revise shape," "revise spec," and "revise plan" are all valid at an approval point.
 
