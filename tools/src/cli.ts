@@ -58,10 +58,17 @@ export async function main(
             return 0;
         }
         if (argv.includes("--help") || argv.includes("-h")) {
-            return emitHelp(
-                argv.filter((arg) => arg !== "--help" && arg !== "-h"),
-                io,
-            );
+            const positionals: string[] = [];
+            for (const arg of argv) {
+                if (arg === "--help" || arg === "-h") {
+                    continue;
+                }
+                if (arg.startsWith("-")) {
+                    break;
+                }
+                positionals.push(arg);
+            }
+            return emitHelp(positionals, io);
         }
 
         const command = argv[0];
@@ -70,7 +77,8 @@ export async function main(
         }
 
         const { positionals, options } = parseOptions(argv.slice(1));
-        const result = await dispatch(command, positionals, options);
+        const common = projectAndFeature(options, io.cwd);
+        const result = await dispatch(command, positionals, options, common);
         if (typeof result === "string") {
             io.stdout(result);
         } else if (Array.isArray(result)) {
@@ -166,13 +174,17 @@ function required(options: Options, name: string): string {
     return value;
 }
 
-function projectAndFeature(options: Options): {
+function projectAndFeature(
+    options: Options,
+    cwd: string,
+): {
     feature: string;
     project: string;
 } {
+    const project = options.project;
     return {
         feature: required(options, "feature"),
-        project: required(options, "project"),
+        project: typeof project === "string" ? project : cwd,
     };
 }
 
@@ -182,8 +194,8 @@ async function dispatch(
     command: string,
     positionals: string[],
     options: Options,
+    common: Common,
 ): Promise<CommandResult | string | unknown[]> {
-    const common = projectAndFeature(options);
     switch (command) {
         case "status":
             return dispatchStatus(positionals, common);
