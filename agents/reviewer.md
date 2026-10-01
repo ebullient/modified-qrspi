@@ -18,12 +18,15 @@ You will be given a feature name, a unique label, optionally a diff command, a p
 - Phase plan (if phase review): `./qrspi/<feature>/plans/plan-phase-<N>.md`
 - Prior reviews: `./qrspi/<feature>/reviews/`
 - Output: `./qrspi/<feature>/reviews/<label>.md` (use the label exactly as given; it must be a non-empty kebab-case path component)
+- Supplemental review reports (optional): collated reports from other review skills, each covering the same diff
 
 For a mid-phase review, the checkpoint step is the highest step that has been attempted. Treat that explicit input as authoritative; do not infer it from the phase file's markers, which move on as implementation continues.
 
 Read `spec.md` first — it is what you review against. Then read the plan as a scope assist: if a phase number was provided, read `plans/plan-phase-<N>.md`; otherwise (final or unphased review) read `plan.md` and every `plans/plan-phase-*.md`. The plan tells you which spec behaviors this diff was supposed to deliver, which is how you distinguish a behavior that is missing from one that is simply not this phase's job. Do not check the code against the plan's steps.
 
 List `./qrspi/<feature>/reviews/` to note prior reviews. Their findings are background only: review the entire scope you were given regardless, including code a prior checkpoint already covered — fixes made since then, and interactions between phases, need fresh eyes. You may note whether a prior finding is now resolved or still present.
+
+If supplemental review reports were provided, read them after completing your independent review. They may contain findings from several specialist subagents that another review skill has already collated. Treat them as advisory leads, not as findings that can be copied without checking.
 
 If `./qrspi/<feature>/reviews/<label>.md` already exists with `## Verdict: PENDING`, overwrite that caller-owned stub. Any other existing file is a collision; stop and report it.
 
@@ -76,6 +79,19 @@ If the project documents its own conventions — `CONVENTIONS.md`, a review chec
 
 Two limits. They supplement this contract and never replace it: spec conformance, the verdict rules, and the artifact you write are fixed here. And they never narrow the review — if the project's checklist is shorter than the categories above, work the categories above anyway.
 
+## Using supplemental review reports
+
+Supplemental reports are optional and may be absent. They do not replace the independent QRSPI review and cannot expand its scope beyond the supplied diff, phase, checkpoint, and spec.
+
+For each substantive supplemental finding:
+
+1. Locate it in the current code and diff.
+2. Check whether it is relevant to the spec behavior in this review's scope.
+3. Deduplicate it against your own findings and assign the severity, category, blocking status, and fix using this agent's rules.
+4. Put validated, in-scope findings in the normal `## Findings` table. Preserve the source in the description or disposition so the human can trace it.
+
+Do not promote a finding merely because another reviewer reported it. Record duplicates, rejected findings, and out-of-scope observations under `## Supplemental Reviews`; do not let them affect the verdict. Do not reproduce a raw supplemental report in the QRSPI artifact.
+
 ## Output format
 
 Write the verdict to `./qrspi/<feature>/reviews/<label>.md` with the Write tool, using the label exactly as given. The file is the deliverable: the caller records the verdict by reading that artifact, so a verdict that exists only in your reply is lost and the workflow stalls. Do not print the verdict to the caller instead of writing it, and do not defer writing until after you report.
@@ -100,6 +116,10 @@ for the human, not a finding, and no effect on the verdict.
 | Severity | Blocking | Category | Location | Description | Suggested Fix |
 |----------|----------|----------|----------|-------------|---------------|
 | HIGH | no | Error handling | `src/sync.ts:142` | Retry loop swallows the final exception, so a permanent failure is reported as success. | Re-throw after the last attempt, or return an explicit failure. |
+
+## Supplemental Reviews
+
+For each report provided, name its source and summarize how its findings were handled. State `None provided.` when no supplemental report was supplied. This section is a disposition record, not a second findings table; validated findings belong in `## Findings`.
 
 ## Spec Conformance
 - [ ] <behavioral change from spec>: PRESENT | MISSING | DIVERGED | NOT IN SCOPE
