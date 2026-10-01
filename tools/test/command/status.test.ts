@@ -56,6 +56,49 @@ describe("status (no loop active)", () => {
         expect(result.next).toEqual({ label: "phase-1" });
     });
 
+    it("counts phase steps when a blank line separates headings from markers", async () => {
+        await mkdir(join(root(), "plans"), { recursive: true });
+        await writeFile(
+            join(root(), "plan.md"),
+            `
+| Phase | Name | Depends On | Description | Steps | Status |
+|-------|------|------------|-------------|-------|--------|
+| 1 | First | none | . | 5 | [~] |
+`,
+        );
+        await writeFile(
+            join(root(), "plans/plan-phase-1.md"),
+            `### Step 1: A
+
+- [ ] Status marker
+
+### Step 2: B
+
+- [ ] Status marker
+
+### Step 3: C
+
+- [ ] Status marker
+
+### Step 4: D
+
+- [ ] Status marker
+
+### Step 5: E
+
+- [ ] Status marker
+`,
+        );
+
+        const result = await run({ feature, project });
+
+        expect(result.current).toMatchObject({
+            step: "implement",
+            phase: "1",
+            planProgress: "0/5 steps",
+        });
+    });
+
     it("surfaces stale-input as a warning finding without blocking", async () => {
         await mkdir(join(root(), "plans"), { recursive: true });
         await writeFile(
