@@ -35,7 +35,7 @@ The `## Decision` body in `approach.md` is undecided only when it is missing, bl
 
 `plan.md` is a Markdown table. The `Depends On` column, not row order alone, defines the phase graph. A phase is satisfied only when all of its dependencies are complete. Scope selection expands dependencies, removes already complete phases, detects cycles, and returns dependencies before dependents.
 
-Phase files are `plans/plan-phase-<id>.md`. Their step markers are parsed only from headings of the form `### Step N` followed by `- [ ]`, `- [~]`, `- [x]`, or `- [!]`. A phase is complete only when it has at least one step and every marker is `[x]`. The plan-table row is a separate completion fact: advancing an unattended run is gated on that row being `[x]`.
+Phase files are `plans/plan-phase-<id>.md`. Their step markers are parsed from headings of the form `### Step N` followed, optionally after blank lines, by `- [ ]`, `- [~]`, `- [x]`, or `- [!]`. A phase is complete only when it has at least one step and every marker is `[x]`. The plan-table row is a separate completion fact: advancing an unattended run is gated on that row being `[x]`.
 
 ## Generated labels
 

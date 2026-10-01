@@ -1,6 +1,7 @@
 export type StepMarker = "[ ]" | "[~]" | "[x]" | "[!]";
 
-const STEP_MARKER_PATTERN = /^### Step \d+.*\n- (\[[ ~x!]\])/gm;
+const STEP_MARKER_PATTERN =
+    /^### Step \d+.*\r?\n(?:[ \t]*\r?\n)*[ \t]*- (\[[ ~x!]\])/gm;
 
 /**
  * Parses a phase file's `### Step K` markers, in file order.
