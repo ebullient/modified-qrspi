@@ -50,7 +50,7 @@ Read the review artifact you were given. Fix **only the blocking findings** — 
 
 Do not fix non-blocking findings. Do not fix anything the review did not raise. Do not refactor while you are in there. A repair pass that changes more than the findings require makes the re-review meaningless, because the reviewer can no longer tell the fix from the noise.
 
-Do not change step markers in the phase file — the steps were already completed. Commit the repairs as one new commit with a message naming the review label you repaired, whatever the commit mode — never amend in repair mode. The orchestrator uses checkpoint evidence to decide whether the repair cycle is complete; it does not infer completion from commit counts.
+Do not change step markers in the phase file — the steps were already completed. Commit the repairs as one new commit with a message naming the review label you repaired — never amend in repair mode. The orchestrator uses checkpoint evidence to decide whether the repair cycle is complete; it does not infer completion from commit counts.
 
 If a finding cannot be fixed without changing the plan or the spec, stop and report it rather than reinterpreting the finding into something you can fix.
 

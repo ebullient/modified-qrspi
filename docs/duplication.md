@@ -15,14 +15,14 @@ The differences are intentional and should not be "fixed" into agreement:
 |---|---|---|
 | Approval | pauses per execution mode | never pauses — nobody's there |
 | Execution modes | four (single/partial/phase/full) | one: the phase it's given |
-| Commits | per step, unless human asks per-phase | the commit mode it's given; repairs always a new commit |
+| Commits | per step, unless human asks per-phase | one per step; repairs always a new commit |
 | Bookkeeping | markers and commits per step | markers and commits per step |
 | Bad plan | stop, explain, propose, await approval | stop, record, report |
 | Repair mode | none | half the contract |
 
 The agent is stricter because it is unattended. Don't import that strictness into the interactive skill, and don't relax it in the agent.
 
-The transition table in `skills/workflow/SKILL.md` and the command implementations under `tools/src/state/` must change together. So must any skill text that names a helper command, option, result field, finding code, or Markdown heading the helper parses — the helper is the contract, and a skill that disagrees with it fails at runtime. **The bare `qrspi-x` invocation form is duplicated across all ten stateful skills and `README.md`; change one and check the others.** Before committing helper or skill changes, run `cd tools && npm run fullbuild`; the generated bundle is ignored. Don't bump versions by hand: the manual release workflow sets the version in `tools/package.json` and `.claude-plugin/plugin.json` and commits the bump.
+The transition table in `skills/workflow/SKILL.md` and the helper command/workspace implementations under `tools/src/command/` and `tools/src/workspace/` must change together. So must any skill text that names a helper command, option, result field, finding code, or Markdown heading the helper parses — the helper is the contract, and a skill that disagrees with it fails at runtime. **The bare `qrspi-x` invocation form is duplicated across all ten stateful skills and `README.md`; change one and check the others.** Before committing helper or skill changes, run `cd tools && npm run fullbuild`; the generated bundle is ignored. Don't bump versions by hand: the manual release workflow sets the version in `tools/package.json` and `.claude-plugin/plugin.json` and commits the bump.
 
 **Diff scope resolution** appears in `reviewer` and `explainer` with near-identical wording (the `git merge-base` fallback against the default branch, and stopping rather than guessing a scope). These two drifting apart is a real risk; check the other when you touch one. `explorer` has no diff-scope section — it surveys a codebase rather than a change.
 
