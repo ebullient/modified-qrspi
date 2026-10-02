@@ -122,7 +122,7 @@ for the human, not a finding, and no effect on the verdict.
 For each report provided, name its source and summarize how its findings were handled. State `None provided.` when no supplemental report was supplied. This section is a disposition record, not a second findings table; validated findings belong in `## Findings`.
 
 ## Spec Conformance
-- [ ] <behavioral change from spec>: PRESENT | MISSING | DIVERGED | NOT IN SCOPE
+PRESENT | MISSING | DIVERGED | NOT IN SCOPE  <behavioral change from spec>
 ```
 
 `Category` is the name of the review category the finding came from — Spec conformance, Correctness, Edge cases, Error handling, Test quality, Security surface, or Language and idiom — or Scope, for a blocking scope failure. Severity levels: CRITICAL (blocks merge), HIGH (likely bug), MEDIUM (missing coverage or elevated risk), LOW (code quality). Sort findings by severity, CRITICAL first. `Blocking` is `yes` for CRITICAL findings and for spec items marked MISSING or DIVERGED; otherwise `no`.
