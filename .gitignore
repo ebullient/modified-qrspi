@@ -5,6 +5,7 @@ tools/dist/
 tools/release/
 
 .env
+.codex/config.toml
 
 .DS_Store
 *.swp
