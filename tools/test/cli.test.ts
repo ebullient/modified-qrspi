@@ -32,7 +32,7 @@ describe("cli", () => {
         expect(stdout[0]).toContain("Commands:");
         expect(stdout[0]).toContain("status -");
         expect(stdout[0]).toContain(
-            "decision read, history read, and next-file print bare content or a path.",
+            "decision read, history read, next-file, and import print bare content or a path.",
         );
         expect(stdout[0]).toContain(
             "0 success, 1 blocked/refused, 2 usage error, 3 usable result with findings, 4 unexpected error.",
@@ -184,5 +184,27 @@ describe("cli", () => {
 
         expect(exitCode).toBe(2);
         expect(stderr[0]).toContain("loop advance takes no arguments");
+    });
+
+    it("runs import command and outputs plain text with exit code 0 on success", async () => {
+        const stdout: string[] = [];
+        const stderr: string[] = [];
+
+        // When given invalid number (e.g. not a number), outputs plain text advice and exit code 1
+        const exitCode = await main(
+            ["import", "not-a-number", "--project", "."],
+            {
+                cwd: ".",
+                stdout: (line) => stdout.push(line),
+                stderr: (line) => stderr.push(line),
+            },
+        );
+
+        expect(exitCode).toBe(1);
+        expect(stdout[0]).toContain("Invalid issue number");
+        expect(stdout[0]).toContain(
+            "Provide a positive issue or pull request number",
+        );
+        expect(stderr).toEqual([]);
     });
 });

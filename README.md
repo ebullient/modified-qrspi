@@ -95,6 +95,8 @@ With the helper, the workflow gets:
 - phase diff scope; and
 - explicit state for the execution loop.
 
+You can also fetch a GitHub issue or PR into `request.md` via `qrspi-x import <number> [--repo <owner/repo | url>]`.
+
 Without the helper, interactive steps still run and remain human-gated. They use the artifacts and plan markers directly, but there is no automatic recovery, durable history, or helper-managed bookkeeping. `autoloop` is the exception: it requires the helper. If a skill reports an ambiguity or recovery issue, follow the instructions it gives; do not hand-edit helper state.
 
 ## Optional autoloop

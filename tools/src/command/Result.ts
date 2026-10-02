@@ -14,6 +14,7 @@ export type CommandResult = {
     exitCode: 0 | 1 | 2 | 3 | 4;
     findings?: Finding[];
     wrote?: string[];
+    text?: string;
     [field: string]: unknown;
 };
 
@@ -27,7 +28,7 @@ export type CommandResult = {
  * failing to exec `qrspi-x`, not a result any command handler produces.
  */
 export function toJson(result: CommandResult): Record<string, unknown> {
-    const { exitCode, findings, wrote, ...fields } = result;
+    const { exitCode, findings, wrote, text, ...fields } = result;
     const json: Record<string, unknown> = { ...fields };
     if (findings && findings.length > 0) {
         json.findings = findings;

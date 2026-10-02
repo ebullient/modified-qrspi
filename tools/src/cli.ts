@@ -5,6 +5,7 @@ import {
     renderToolHelp,
 } from "./command/Help.ts";
 import * as history from "./command/history.ts";
+import * as importCmd from "./command/import.ts";
 import * as log from "./command/log.ts";
 import * as loop from "./command/loop.ts";
 import * as nextFile from "./command/next-file.ts";
@@ -30,6 +31,7 @@ export const commandHelps: CommandHelp[] = [
     nextFile.help,
     start.help,
     status.help,
+    importCmd.help,
 ];
 
 const commandNames = new Set(commandHelps.map((entry) => entry.name));
@@ -77,12 +79,25 @@ export async function main(
         }
 
         const { positionals, options } = parseOptions(argv.slice(1));
-        const common = projectAndFeature(options, io.cwd);
-        const result = await dispatch(command, positionals, options, common);
+        const result =
+            command === "import"
+                ? await dispatchImport(
+                      positionals,
+                      options,
+                      projectAndOptionalFeature(options, io.cwd),
+                  )
+                : await dispatch(
+                      command,
+                      positionals,
+                      options,
+                      projectAndFeature(options, io.cwd),
+                  );
         if (typeof result === "string") {
             io.stdout(result);
         } else if (Array.isArray(result)) {
             io.stdout(JSON.stringify(result));
+        } else if (typeof result.text === "string") {
+            io.stdout(result.text);
         } else {
             io.stdout(JSON.stringify(toJson(result)));
         }
@@ -174,21 +189,28 @@ function required(options: Options, name: string): string {
     return value;
 }
 
-function projectAndFeature(
+type Common = { feature: string; project: string };
+type CommonOptional = { feature: string | undefined; project: string };
+
+function projectAndOptionalFeature(
     options: Options,
     cwd: string,
-): {
-    feature: string;
-    project: string;
-} {
+): CommonOptional {
+    const project = options.project;
+    const feature = options.feature;
+    return {
+        feature: typeof feature === "string" ? feature : undefined,
+        project: typeof project === "string" ? project : cwd,
+    };
+}
+
+function projectAndFeature(options: Options, cwd: string): Common {
     const project = options.project;
     return {
         feature: required(options, "feature"),
         project: typeof project === "string" ? project : cwd,
     };
 }
-
-type Common = { feature: string; project: string };
 
 async function dispatch(
     command: string,
@@ -240,6 +262,25 @@ function dispatchNextFile(
         phase: typeof options.phase === "string" ? options.phase : undefined,
         step:
             typeof options.step === "string" ? Number(options.step) : undefined,
+    });
+}
+
+async function dispatchImport(
+    positionals: string[],
+    options: Options,
+    common: CommonOptional,
+): Promise<CommandResult> {
+    const number = positionals[0];
+    if (number === undefined || positionals.length !== 1) {
+        throw new UsageError("import requires exactly one issue or PR number");
+    }
+    const repo = typeof options.repo === "string" ? options.repo : undefined;
+
+    return importCmd.runImport({
+        number,
+        project: common.project,
+        feature: common.feature,
+        repo,
     });
 }
 
