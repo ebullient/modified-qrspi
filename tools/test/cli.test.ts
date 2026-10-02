@@ -186,6 +186,22 @@ describe("cli", () => {
         expect(stderr[0]).toContain("loop advance takes no arguments");
     });
 
+    it("rejects an unknown action on a singleAction-based command before dispatch", async () => {
+        const stderr: string[] = [];
+
+        const exitCode = await main(
+            ["decision", "bogus", "--feature", "widget", "--project", "."],
+            {
+                cwd: ".",
+                stdout: () => {},
+                stderr: (line) => stderr.push(line),
+            },
+        );
+
+        expect(exitCode).toBe(2);
+        expect(stderr[0]).toContain('Unknown decision action "bogus"');
+    });
+
     it("runs import command and outputs plain text with exit code 0 on success", async () => {
         const stdout: string[] = [];
         const stderr: string[] = [];
@@ -206,5 +222,50 @@ describe("cli", () => {
             "Provide a positive issue or pull request number",
         );
         expect(stderr).toEqual([]);
+    });
+
+    it("rejects an unknown flag instead of silently ignoring it", async () => {
+        const stderr: string[] = [];
+
+        const exitCode = await main(
+            ["import", "436", "--feature-name", "grid-edit", "--project", "."],
+            {
+                cwd: ".",
+                stdout: () => {},
+                stderr: (line) => stderr.push(line),
+            },
+        );
+
+        expect(exitCode).toBe(2);
+        expect(stderr[0]).toContain('Unknown option "--feature-name"');
+    });
+
+    it("rejects an unknown flag on an action-scoped command", async () => {
+        const stderr: string[] = [];
+
+        const exitCode = await main(
+            [
+                "decision",
+                "add",
+                "--text",
+                "why",
+                "--feature",
+                "widget",
+                "--project",
+                ".",
+                "--notaflag",
+                "x",
+            ],
+            {
+                cwd: ".",
+                stdout: () => {},
+                stderr: (line) => stderr.push(line),
+            },
+        );
+
+        expect(exitCode).toBe(2);
+        expect(stderr[0]).toContain(
+            'Unknown option "--notaflag" for "decision add"',
+        );
     });
 });
