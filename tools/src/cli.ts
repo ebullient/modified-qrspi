@@ -1,6 +1,8 @@
 import * as decision from "./command/decision.ts";
 import {
+    type ActionHelp,
     type CommandHelp,
+    type FlagHelp,
     renderHelp,
     renderToolHelp,
 } from "./command/Help.ts";
@@ -79,6 +81,7 @@ export async function main(
         }
 
         const { positionals, options } = parseOptions(argv.slice(1));
+        validateOptions(command, positionals, options);
         const result =
             command === "import"
                 ? await dispatchImport(
@@ -168,6 +171,65 @@ function parseOptions(args: string[]): {
         setOption(options, name.slice(2), value);
     }
     return { positionals, options };
+}
+
+function flagName(flag: string): string | undefined {
+    if (!flag.startsWith("--")) return undefined;
+    const token = flag.split(/[\s=]/, 1)[0] as string;
+    return token.slice(2);
+}
+
+function allowedFlagNames(flags: FlagHelp[] | undefined): Set<string> {
+    const names = new Set<string>();
+    for (const f of flags ?? []) {
+        const name = flagName(f.flag);
+        if (name) names.add(name);
+    }
+    return names;
+}
+
+/**
+ * Each command/action's `help.flags` (always including `commonOptions`) is
+ * the single source of truth for what it accepts. For an action-based
+ * command this also throws on an unrecognized action name, which used to be
+ * duplicated as a `default` case in every one of that command's dispatch
+ * switches (and in `dispatchLoop`'s own) — `help.actions` already lists the
+ * same names, so one lookup here replaces all of them.
+ */
+function validateOptions(
+    command: string,
+    positionals: string[],
+    options: Options,
+): void {
+    const help = commandHelps.find((c) => c.name === command);
+    if (!help) {
+        return;
+    }
+
+    let flags: FlagHelp[] | undefined;
+    let scope = command;
+    if (help.actions && help.actions.length > 0) {
+        const actionName = positionals[0];
+        const action: ActionHelp | undefined = help.actions.find(
+            (a) => a.name === actionName,
+        );
+        if (!action) {
+            throw new UsageError(
+                `Unknown ${command} action "${actionName ?? ""}"`,
+            );
+        }
+        flags = action.flags;
+        scope = `${command} ${actionName}`;
+    } else {
+        flags = help.flags;
+    }
+
+    const allowed = allowedFlagNames(flags);
+    for (const name of Object.keys(options)) {
+        if (!allowed.has(name)) {
+            throw new UsageError(`Unknown option "--${name}" for "${scope}"`);
+        }
+    }
 }
 
 function setOption(
