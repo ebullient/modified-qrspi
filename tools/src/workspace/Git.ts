@@ -7,6 +7,7 @@ export type Git = {
     isClean: () => Promise<boolean>;
     headSha: () => Promise<string>;
     isAncestor: (commit: string) => Promise<boolean>;
+    originRepo: () => Promise<{ owner: string; repo: string } | undefined>;
 };
 
 /**
@@ -43,5 +44,44 @@ export function gitAt(cwd: string): Git {
         }
     }
 
-    return { isClean, headSha, isAncestor };
+    async function originRepo(): Promise<
+        { owner: string; repo: string } | undefined
+    > {
+        try {
+            const { stdout } = await run(
+                "git",
+                ["remote", "get-url", "origin"],
+                {
+                    cwd,
+                },
+            );
+            return parseGitHubRepo(stdout);
+        } catch {
+            return undefined;
+        }
+    }
+
+    return { isClean, headSha, isAncestor, originRepo };
+}
+
+function parseGitHubRepo(
+    url: string,
+): { owner: string; repo: string } | undefined {
+    const trimmed = url.trim();
+    // HTTPS or SSH github.com URL:
+    // https://github.com/owner/repo.git, https://github.com/owner/repo
+    // git@github.com:owner/repo.git, ssh://git@github.com/owner/repo.git
+    const httpsMatch = trimmed.match(
+        /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/,
+    );
+    if (httpsMatch) {
+        return { owner: httpsMatch[1], repo: httpsMatch[2] };
+    }
+    const sshMatch = trimmed.match(
+        /^(?:ssh:\/\/)?git@github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/,
+    );
+    if (sshMatch) {
+        return { owner: sshMatch[1], repo: sshMatch[2] };
+    }
+    return undefined;
 }

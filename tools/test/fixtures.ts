@@ -3,12 +3,18 @@ import type { Git } from "../src/workspace/Git.ts";
 import type { HistoryLog } from "../src/workspace/History.ts";
 
 export function fakeGit(
-    opts: { clean?: boolean; sha?: string; ancestors?: string[] } = {},
+    opts: {
+        clean?: boolean;
+        sha?: string;
+        ancestors?: string[];
+        originRepo?: { owner: string; repo: string };
+    } = {},
 ): Git {
     return {
         isClean: async () => opts.clean ?? true,
         headSha: async () => opts.sha ?? "abc123",
         isAncestor: async (commit) => opts.ancestors?.includes(commit) ?? true,
+        originRepo: async () => opts.originRepo,
     };
 }
 
