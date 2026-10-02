@@ -48,8 +48,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$DEFAULT_BRANCH")"
           npm version "$INPUT_VERSION" --no-git-tag-version --prefix tools
           VERSION="$(jq -r '.version' tools/package.json)"
-          if git rev-parse --verify --quiet "refs/tags/v$VERSION"; then
-            echo "tag v$VERSION already exists" >&2
+          if git rev-parse --verify --quiet "refs/tags/$VERSION"; then
+            echo "tag $VERSION already exists" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -83,6 +83,18 @@ jobs:
         with:
           subject-path: tools/release/qrspi-x-${{ steps.version.outputs.version }}.zip
 
+      - name: Generate changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        working-directory: tools
+        run: npx auto-changelog -p package.json -o ../CHANGELOG.md -v "$VERSION"
+
+      - name: Generate release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        working-directory: tools
+        run: npx auto-changelog -p package.json --stdout --hide-credit --hide-empty-releases --template ../.github/changelog.hbs -v "$VERSION" --starting-version "$VERSION" > ../release-notes.md
+
       - name: Commit and tag release
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -93,14 +105,14 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .claude-plugin/plugin.json tools/package.json tools/package-lock.json
+          git add .claude-plugin/plugin.json tools/package.json tools/package-lock.json CHANGELOG.md
           git diff --cached --quiet && { echo "release metadata did not change" >&2; exit 1; }
-          git commit -m "🔖 release v$VERSION"
-          git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "HEAD:$DEFAULT_BRANCH" "v$VERSION"
+          git commit -m "🔖 $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "HEAD:$DEFAULT_BRANCH" "$VERSION"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create "v$VERSION" "tools/release/qrspi-x-$VERSION.zip" --title "v$VERSION" --generate-notes
+        run: gh release create "$VERSION" "tools/release/qrspi-x-$VERSION.zip" --title "$VERSION" -F release-notes.md
