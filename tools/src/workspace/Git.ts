@@ -64,24 +64,66 @@ export function gitAt(cwd: string): Git {
     return { isClean, headSha, isAncestor, originRepo };
 }
 
-function parseGitHubRepo(
-    url: string,
-): { owner: string; repo: string } | undefined {
-    const trimmed = url.trim();
-    // HTTPS or SSH github.com URL:
-    // https://github.com/owner/repo.git, https://github.com/owner/repo
-    // git@github.com:owner/repo.git, ssh://git@github.com/owner/repo.git
-    const httpsMatch = trimmed.match(
-        /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/,
-    );
-    if (httpsMatch) {
-        return { owner: httpsMatch[1], repo: httpsMatch[2] };
+export function parseGitHubRepo(input: string): {
+    owner: string;
+    repo: string;
+} {
+    const trimmed = input.trim();
+    if (!trimmed) {
+        throw new Error("Repository cannot be empty.");
     }
+
+    // SSH URL: git@github.com:owner/repo.git or ssh://git@github.com/owner/repo.git
     const sshMatch = trimmed.match(
-        /^(?:ssh:\/\/)?git@github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/,
+        /^(?:ssh:\/\/)?git@([^:/]+)[:/]([^/]+)\/([^/]+?)(?:\.git)?$/,
     );
     if (sshMatch) {
-        return { owner: sshMatch[1], repo: sshMatch[2] };
+        const [, host, owner, repo] = sshMatch;
+        if (host !== "github.com") {
+            throw new Error(
+                `Unsupported host "${host}". Only github.com is supported.`,
+            );
+        }
+        return { owner, repo };
     }
-    return undefined;
+
+    // Full HTTP(S) URL
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        try {
+            const url = new URL(trimmed);
+            if (url.hostname !== "github.com") {
+                throw new Error(
+                    `Unsupported host "${url.hostname}". Only github.com is supported.`,
+                );
+            }
+            const match = url.pathname.match(
+                /^\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/,
+            );
+            if (match) {
+                return { owner: match[1], repo: match[2] };
+            }
+        } catch (e) {
+            if (
+                e instanceof Error &&
+                e.message.startsWith("Unsupported host")
+            ) {
+                throw e;
+            }
+            throw new Error(
+                `Invalid repository URL "${input}". Expected a github.com repository URL.`,
+            );
+        }
+    }
+
+    // Shorthand: owner/repo
+    const shorthandMatch = trimmed.match(
+        /^([^/#\s:]+)\/([^/#\s:]+?)(?:\.git)?$/,
+    );
+    if (shorthandMatch) {
+        return { owner: shorthandMatch[1], repo: shorthandMatch[2] };
+    }
+
+    throw new Error(
+        `Invalid repository "${input}". Expected owner/repo shorthand or a github.com repository URL.`,
+    );
 }

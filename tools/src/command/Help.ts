@@ -49,7 +49,7 @@ export function renderToolHelp(commands: CommandHelp[]): string {
         "",
         "Output:",
         "  Commands normally print JSON to stdout.",
-        "  decision read, history read, and next-file print bare content or a path.",
+        "  decision read, history read, next-file, and import print bare content or a path.",
         "",
         "Exit codes:",
         "  0 success, 1 blocked/refused, 2 usage error, 3 usable result with findings, 4 unexpected error.",

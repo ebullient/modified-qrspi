@@ -19,4 +19,17 @@ Paths below are relative to `tools/`.
 - `src/workspace/PlanTable.ts` owns dependency parsing and scope resolution.
 - `src/workspace/LoopState.ts` owns unattended execution state and its next action.
 - `src/workspace/History.ts` and `Decisions.ts` own the append-only timeline and durable rationale.
+- `src/command/import.ts` implements `qrspi-x import <reference>`: fetches issue/PR title and body via `gh` with REST fallback and writes `request.md`.
 - `test/` is the executable contract for edge cases and idempotency.
+
+## `import` command
+
+`import` is CLI-only (no corresponding skill or agent):
+- Invoked as `qrspi-x import <number> [--feature <name>] [--repo <owner/repo | url>] [--project <path>]`.
+- `<number>` accepts issue/PR numbers (e.g. `42` or `#42`).
+- `--repo` accepts `owner/repo` shorthand or a GitHub URL (e.g. `https://github.com/owner/repo`). When omitted, repo is inferred from the project directory's git `origin` remote.
+- Only `github.com` is supported (no Enterprise Server).
+- Fetches title and body via `gh issue view` / `gh pr view`, falling back to unauthenticated public REST API if `gh` is unavailable.
+- Derives feature workspace name `gh-<repo>-<n>` or uses explicit `--feature <name>`.
+- Refuses to overwrite an existing feature directory (`feature-exists`).
+- Writes `# <title>\n\n<body>\n` into `./qrspi/<feature>/request.md`.
