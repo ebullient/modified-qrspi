@@ -2,6 +2,8 @@ name: Build
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -57,4 +59,4 @@ jobs:
         run: |
           node --version
           ./tools/dist/qrspi-x.mjs --version
-          ./tools/dist/qrspi-x.mjs report --feature smoke-test --project .
+          ./tools/dist/qrspi-x.mjs status --feature smoke-test --project .
